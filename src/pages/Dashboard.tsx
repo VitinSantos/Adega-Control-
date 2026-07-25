@@ -82,27 +82,27 @@ export function Dashboard() {
   const maxBarValue = Math.max(...chartData.map(d => d.valor), 1);
 
   return (
-    <div className="p-8">
-      <h2 className="text-2xl font-bold mb-6 text-gray-800">Dashboard de Vendas</h2>
+    <div className="p-3 md:p-6 lg:p-8">
+      <h2 className="text-xl md:text-2xl font-bold mb-6 text-gray-800">Dashboard de Vendas</h2>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-        <div className="bg-white p-6 rounded shadow-sm border-l-4 border-blue-500">
-          <p className="text-gray-500 text-sm font-bold uppercase">Faturamento (Vendas)</p>
-          <p className="text-3xl font-bold text-blue-600">R$ {totalVendido.toFixed(2)}</p>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mb-8">
+        <div className="bg-white p-4 md:p-6 rounded shadow-sm border-l-4 border-blue-500 flex flex-col justify-center">
+          <p className="text-gray-500 text-xs md:text-sm font-bold uppercase">Faturamento (Vendas)</p>
+          <p className="text-2xl md:text-3xl font-bold text-blue-600">R$ {totalVendido.toFixed(2)}</p>
         </div>
-        <div className="bg-white p-6 rounded shadow-sm border-l-4 border-emerald-500">
-          <p className="text-gray-500 text-sm font-bold uppercase">Lucro Líquido</p>
-          <p className="text-3xl font-bold text-emerald-600">R$ {lucroTotal.toFixed(2)}</p>
+        <div className="bg-white p-4 md:p-6 rounded shadow-sm border-l-4 border-emerald-500 flex flex-col justify-center">
+          <p className="text-gray-500 text-xs md:text-sm font-bold uppercase">Lucro Líquido</p>
+          <p className="text-2xl md:text-3xl font-bold text-emerald-600">R$ {lucroTotal.toFixed(2)}</p>
         </div>
       </div>
 
-      <div className="bg-white p-4 rounded shadow-sm flex flex-wrap items-center justify-between gap-4 border mb-6">
-        <div className="flex gap-4">
+      <div className="bg-white p-4 rounded shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border mb-6">
+        <div className="flex flex-wrap gap-2 md:gap-4 w-full md:w-auto">
           {['diario', 'semanal', 'mensal'].map((f) => (
             <button
               key={f}
               onClick={() => { setFiltro(f as any); setDetalhesSelecionados(null); }}
-              className={`px-4 py-2 rounded font-bold capitalize transition ${filtro === f ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+              className={`flex-1 md:flex-none px-4 py-2 rounded font-bold capitalize transition text-sm md:text-base ${filtro === f ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
             >
               {f}
             </button>
@@ -111,12 +111,12 @@ export function Dashboard() {
 
         {/* Seletor dinâmico de mês exclusivo para o filtro mensal */}
         {filtro === 'mensal' && (
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full md:w-auto mt-2 md:mt-0">
             <label className="text-sm font-bold text-gray-600">Analisar o Mês de:</label>
             <select 
               value={mesSelecionado} 
               onChange={(e) => { setMesSelecionado(Number(e.target.value)); setDetalhesSelecionados(null); }}
-              className="border p-2 rounded font-medium bg-white outline-none focus:border-gray-800"
+              className="border p-2 rounded font-medium bg-white outline-none focus:border-gray-800 w-full sm:w-auto"
             >
               {mesesAno.map((m, idx) => (
                 <option key={idx} value={idx}>{m}</option>
@@ -126,12 +126,12 @@ export function Dashboard() {
         )}
       </div>
 
-      <div className="bg-white p-6 rounded shadow-sm border mb-8">
+      <div className="bg-white p-4 md:p-6 rounded shadow-sm border mb-8 overflow-x-auto">
         <h3 className="font-bold text-gray-700 mb-8 capitalize">
           Visualização {filtro === 'mensal' ? `${filtro} (${mesesAno[mesSelecionado]})` : filtro}
         </h3>
         
-        <div className="h-64 flex items-end gap-1 md:gap-2">
+        <div className="h-64 flex items-end gap-1 md:gap-2 min-w-[500px]">
           {chartData.map((d, index) => {
             const alturaPercentual = (d.valor / maxBarValue) * 100;
             return (
@@ -148,7 +148,7 @@ export function Dashboard() {
                     <div style={{ height: `${(d.lucro / d.valor) * 100}%` }} className="absolute bottom-0 left-0 w-full bg-emerald-500 rounded-t" />
                   )}
                 </div>
-                <span className="text-[10px] md:text-xs text-center mt-2 text-gray-500 font-medium">{d.label}</span>
+                <span className="text-[10px] md:text-xs text-center mt-2 text-gray-500 font-medium whitespace-nowrap overflow-hidden text-ellipsis">{d.label}</span>
               </div>
             );
           })}
@@ -156,16 +156,16 @@ export function Dashboard() {
       </div>
 
       {detalhesSelecionados && (
-        <div className="bg-white p-6 rounded shadow-sm border">
-          <div className="flex justify-between items-center mb-4">
+        <div className="bg-white p-4 md:p-6 rounded shadow-sm border">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2">
             <h3 className="font-bold text-lg text-gray-800">Produtos vendidos: {detalhesSelecionados.label}</h3>
-            <button onClick={() => setDetalhesSelecionados(null)} className="text-gray-400 hover:text-red-500 font-bold">FECHAR ✕</button>
+            <button onClick={() => setDetalhesSelecionados(null)} className="text-gray-400 hover:text-red-500 font-bold text-sm">FECHAR ✕</button>
           </div>
           {detalhesSelecionados.itens.length === 0 ? (
             <p className="text-gray-500 italic">Nenhuma venda registrada neste período.</p>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
+            <div className="overflow-x-auto w-full">
+              <table className="w-full min-w-[500px] text-left border-collapse">
                 <thead>
                   <tr className="bg-gray-50 text-gray-600 text-sm border-b">
                     <th className="p-3">Horário</th>
