@@ -13,8 +13,10 @@ export function Sidebar({ currentTab, setCurrentTab, onLogout }: SidebarProps) {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showConfigModal, setShowConfigModal] = useState(false);
   
-  // Estados de dados e verificação de alterações pendentes (Dirty check)
-  const [avatarUrl, setAvatarUrl] = useState('https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150');
+  // Estados de dados com persistência no localStorage para manter a foto nos próximos logins
+  const [avatarUrl, setAvatarUrl] = useState(() => {
+    return localStorage.getItem('adegacontrol_avatar') || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150';
+  });
   const [email] = useState('colaborador@adegacontrol.com');
   const [isDirty, setIsDirty] = useState(false);
   const [showUnsavedAlert, setShowUnsavedAlert] = useState(false);
@@ -33,6 +35,8 @@ export function Sidebar({ currentTab, setCurrentTab, onLogout }: SidebarProps) {
   const confirmDiscard = () => {
     setIsDirty(false);
     setShowUnsavedAlert(false);
+    // Restaura a foto salva anteriormente no localStorage caso tenha alterado sem salvar
+    setAvatarUrl(localStorage.getItem('adegacontrol_avatar') || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150');
     if (pendingAction) pendingAction();
   };
 
@@ -47,6 +51,12 @@ export function Sidebar({ currentTab, setCurrentTab, onLogout }: SidebarProps) {
       };
       reader.readAsDataURL(e.target.files[0]);
     }
+  };
+
+  const saveProfileChanges = () => {
+    localStorage.setItem('adegacontrol_avatar', avatarUrl);
+    setIsDirty(false);
+    setShowProfileModal(false);
   };
 
   const menuItems = [
@@ -94,30 +104,36 @@ export function Sidebar({ currentTab, setCurrentTab, onLogout }: SidebarProps) {
         {/* Rodapé Estilo Gemini (Foto, Nome e Configurações) */}
         <div className="p-4 border-t border-gray-100 relative">
           
-          {/* Menu flutuante do perfil (Abrir modal de imagem ou sair) */}
+          {/* Menu flutuante do perfil com Backdrop para fechar ao clicar fora */}
           {showProfileMenu && (
-            <div className="absolute bottom-20 left-4 right-4 bg-white rounded-2xl shadow-xl border border-gray-200 p-2 z-50">
-              <button
-                onClick={() => {
-                  setShowProfileMenu(false);
-                  setShowProfileModal(true);
-                }}
-                className="w-full flex items-center gap-3 px-3 py-2.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 rounded-xl transition"
-              >
-                <Camera size={16} className="text-emerald-600" />
-                Alterar Imagem / Perfil
-              </button>
-              <button
-                onClick={() => {
-                  setShowProfileMenu(false);
-                  if (onLogout) onLogout();
-                }}
-                className="w-full flex items-center gap-3 px-3 py-2.5 text-xs font-semibold text-red-600 hover:bg-red-50 rounded-xl transition"
-              >
-                <LogOut size={16} />
-                Sair da Conta
-              </button>
-            </div>
+            <>
+              <div 
+                className="fixed inset-0 z-40" 
+                onClick={() => setShowProfileMenu(false)} 
+              />
+              <div className="absolute bottom-20 left-4 right-4 bg-white rounded-2xl shadow-xl border border-gray-200 p-2 z-50 animate-in fade-in zoom-in-95 duration-150">
+                <button
+                  onClick={() => {
+                    setShowProfileMenu(false);
+                    setShowProfileModal(true);
+                  }}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 rounded-xl transition"
+                >
+                  <Camera size={16} className="text-emerald-600" />
+                  Alterar Imagem / Perfil
+                </button>
+                <button
+                  onClick={() => {
+                    setShowProfileMenu(false);
+                    if (onLogout) onLogout();
+                  }}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 text-xs font-semibold text-red-600 hover:bg-red-50 rounded-xl transition"
+                >
+                  <LogOut size={16} />
+                  Sair da Conta
+                </button>
+              </div>
+            </>
           )}
 
           <div className="flex items-center justify-between bg-gray-50 hover:bg-gray-100/80 p-2 rounded-2xl transition border border-gray-100">
@@ -156,11 +172,11 @@ export function Sidebar({ currentTab, setCurrentTab, onLogout }: SidebarProps) {
           onClick={() => handleTryClose(() => setShowProfileModal(false))}
         >
           <div 
-            className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-gray-100 relative space-y-6"
+            className="bg-white rounded-3xl max-w-lg w-full p-8 shadow-2xl border border-gray-100 relative space-y-6 animate-in fade-in zoom-in-95 duration-200"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b border-gray-100 pb-4">
-              <h3 className="text-lg font-bold text-gray-900">Perfil do Colaborador</h3>
+              <h3 className="text-xl font-bold text-gray-900">Perfil do Colaborador</h3>
               <button 
                 onClick={() => handleTryClose(() => setShowProfileModal(false))}
                 className="text-gray-400 hover:text-gray-600 p-1 rounded-lg"
@@ -169,16 +185,16 @@ export function Sidebar({ currentTab, setCurrentTab, onLogout }: SidebarProps) {
               </button>
             </div>
 
-            <div className="flex flex-col items-center space-y-4">
+            <div className="flex flex-col items-center space-y-4 py-2">
               <div className="relative group">
                 <img 
                   src={avatarUrl} 
                   alt="Avatar" 
-                  className="w-24 h-24 rounded-full object-cover border-4 border-emerald-100 shadow-md"
+                  className="w-28 h-28 rounded-full object-cover border-4 border-emerald-100 shadow-md"
                 />
                 <label className="absolute inset-0 bg-black/40 rounded-full flex flex-col items-center justify-center text-white opacity-0 group-hover:opacity-100 transition cursor-pointer text-xs font-semibold">
-                  <Camera size={20} className="mb-1" />
-                  Alterar
+                  <Camera size={22} className="mb-1" />
+                  Alterar foto
                   <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
                 </label>
               </div>
@@ -192,7 +208,7 @@ export function Sidebar({ currentTab, setCurrentTab, onLogout }: SidebarProps) {
                   type="email" 
                   value={email} 
                   disabled 
-                  className="w-full px-4 py-2.5 bg-gray-100 border border-gray-200 rounded-xl text-sm text-gray-500 cursor-not-allowed"
+                  className="w-full px-4 py-3 bg-gray-100 border border-gray-200 rounded-xl text-sm text-gray-500 cursor-not-allowed"
                 />
                 <span className="text-[10px] text-amber-600 mt-1 block">Apenas o desenvolvedor pode alterar o e-mail.</span>
               </div>
@@ -201,16 +217,13 @@ export function Sidebar({ currentTab, setCurrentTab, onLogout }: SidebarProps) {
             <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
               <button
                 onClick={() => handleTryClose(() => setShowProfileModal(false))}
-                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-xl text-xs font-semibold hover:bg-gray-200 transition"
+                className="px-5 py-2.5 bg-gray-100 text-gray-700 rounded-xl text-xs font-semibold hover:bg-gray-200 transition"
               >
-                Fechar
+                Cancelar
               </button>
               <button
-                onClick={() => {
-                  setIsDirty(false);
-                  setShowProfileModal(false);
-                }}
-                className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-semibold hover:bg-emerald-700 transition shadow-md shadow-emerald-600/20"
+                onClick={saveProfileChanges}
+                className="px-5 py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-semibold hover:bg-emerald-700 transition shadow-md shadow-emerald-600/20"
               >
                 Salvar Alterações
               </button>
@@ -219,19 +232,19 @@ export function Sidebar({ currentTab, setCurrentTab, onLogout }: SidebarProps) {
         </div>
       )}
 
-      {/* 2. Modal de Configurações */}
+      {/* 2. Modal de Configurações (Mais espaçoso e centralizado) */}
       {showConfigModal && (
         <div 
           className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4"
           onClick={() => handleTryClose(() => setShowConfigModal(false))}
         >
           <div 
-            className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-gray-100 relative space-y-6"
+            className="bg-white rounded-3xl max-w-xl w-full p-8 shadow-2xl border border-gray-100 relative space-y-6 animate-in fade-in zoom-in-95 duration-200"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b border-gray-100 pb-4">
-              <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                <Settings size={20} className="text-emerald-600" /> Configurações
+              <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2.5">
+                <Settings size={22} className="text-emerald-600" /> Configurações do Sistema
               </h3>
               <button 
                 onClick={() => handleTryClose(() => setShowConfigModal(false))}
@@ -241,42 +254,42 @@ export function Sidebar({ currentTab, setCurrentTab, onLogout }: SidebarProps) {
               </button>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-4 py-2">
               {/* Botão de mudança de tema */}
-              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-2xl border border-gray-100">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-white rounded-xl text-emerald-600 shadow-sm">
-                    <Moon size={18} />
+              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                <div className="flex items-center gap-3.5">
+                  <div className="p-2.5 bg-white rounded-xl text-emerald-600 shadow-sm">
+                    <Moon size={20} />
                   </div>
                   <div>
-                    <p className="text-xs font-bold text-gray-900">Modo Claro / Escuro</p>
-                    <p className="text-[10px] text-gray-500">Alternar tema visual</p>
+                    <p className="text-sm font-bold text-gray-900">Modo Claro / Escuro</p>
+                    <p className="text-xs text-gray-500">Alternar tema visual da interface</p>
                   </div>
                 </div>
                 <button 
                   onClick={() => setIsDirty(true)}
-                  className="px-3 py-1.5 bg-emerald-100 text-emerald-800 rounded-xl text-xs font-semibold hover:bg-emerald-200 transition"
+                  className="px-4 py-2 bg-emerald-100 text-emerald-800 rounded-xl text-xs font-semibold hover:bg-emerald-200 transition"
                 >
                   Alternar
                 </button>
               </div>
 
               {/* Suporte WhatsApp */}
-              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-2xl border border-gray-100">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-white rounded-xl text-emerald-600 shadow-sm">
-                    <MessageCircle size={18} />
+              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                <div className="flex items-center gap-3.5">
+                  <div className="p-2.5 bg-white rounded-xl text-emerald-600 shadow-sm">
+                    <MessageCircle size={20} />
                   </div>
                   <div>
-                    <p className="text-xs font-bold text-gray-900">Suporte Técnico</p>
-                    <p className="text-[10px] text-gray-500">WhatsApp: 11 943906039</p>
+                    <p className="text-sm font-bold text-gray-900">Suporte Técnico</p>
+                    <p className="text-xs text-gray-500">WhatsApp: 11 943906039</p>
                   </div>
                 </div>
                 <a 
                   href="https://wa.me/5511943906039" 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="px-3 py-1.5 bg-emerald-600 text-white rounded-xl text-xs font-semibold hover:bg-emerald-700 transition shadow-sm"
+                  className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-semibold hover:bg-emerald-700 transition shadow-sm"
                 >
                   Chamar
                 </a>
@@ -289,9 +302,9 @@ export function Sidebar({ currentTab, setCurrentTab, onLogout }: SidebarProps) {
                     setShowConfigModal(false);
                     if (onLogout) onLogout();
                   }}
-                  className="w-full flex items-center justify-center gap-2 py-3 bg-red-50 text-red-600 rounded-xl text-xs font-semibold hover:bg-red-100 transition border border-red-100"
+                  className="w-full flex items-center justify-center gap-2 py-3.5 bg-red-50 text-red-600 rounded-xl text-xs font-semibold hover:bg-red-100 transition border border-red-100 shadow-sm"
                 >
-                  <LogOut size={16} /> Sair da Conta
+                  <LogOut size={18} /> Sair da Conta
                 </button>
               </div>
             </div>
@@ -299,16 +312,16 @@ export function Sidebar({ currentTab, setCurrentTab, onLogout }: SidebarProps) {
             <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
               <button
                 onClick={() => handleTryClose(() => setShowConfigModal(false))}
-                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-xl text-xs font-semibold hover:bg-gray-200 transition"
+                className="px-5 py-2.5 bg-gray-100 text-gray-700 rounded-xl text-xs font-semibold hover:bg-gray-200 transition"
               >
-                Fechar
+                Cancelar
               </button>
               <button
                 onClick={() => {
                   setIsDirty(false);
                   setShowConfigModal(false);
                 }}
-                className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-semibold hover:bg-emerald-700 transition shadow-md shadow-emerald-600/20"
+                className="px-5 py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-semibold hover:bg-emerald-700 transition shadow-md shadow-emerald-600/20"
               >
                 Salvar Configurações
               </button>
