@@ -1,10 +1,18 @@
 import { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
+import type { Venda } from '../types';
+
+interface DadoAgrupado {
+  label: string;
+  valor: number;
+  lucro: number;
+  itens: Venda[];
+}
 
 export function Dashboard() {
   const { vendas } = useApp();
   const [filtro, setFiltro] = useState<'diario' | 'semanal' | 'mensal'>('diario');
-  const [detalhesSelecionados, setDetalhesSelecionados] = useState<any>(null);
+  const [detalhesSelecionados, setDetalhesSelecionados] = useState<DadoAgrupado | null>(null);
   
   // Estado para escolher o mês na visualização mensal (Padrão: mês atual de 2026)
   const [mesSelecionado, setMesSelecionado] = useState(new Date().getMonth());
@@ -15,15 +23,15 @@ export function Dashboard() {
   ];
 
   const { chartData, totalVendido, lucroTotal } = useMemo(() => {
-    let dadosAgrupados: any[] = [];
+    let dadosAgrupados: DadoAgrupado[] = [];
     const agora = new Date();
-    const vendasValidas = vendas.filter((v: any) => v.dataHoraISO);
+    const vendasValidas = vendas.filter((v) => v.dataHoraISO);
 
     if (filtro === 'diario') {
       const labels = Array.from({ length: 24 }, (_, i) => `${i}h`);
       dadosAgrupados = labels.map(label => ({ label, valor: 0, lucro: 0, itens: [] }));
       
-      vendasValidas.forEach((v: any) => {
+      vendasValidas.forEach((v) => {
         const d = new Date(v.dataHoraISO);
         if (d.toDateString() === agora.toDateString()) {
           const hora = d.getHours();
@@ -41,7 +49,7 @@ export function Dashboard() {
       inicioSemana.setDate(agora.getDate() - agora.getDay());
       inicioSemana.setHours(0, 0, 0, 0);
 
-      vendasValidas.forEach((v: any) => {
+      vendasValidas.forEach((v) => {
         const d = new Date(v.dataHoraISO);
         if (d >= inicioSemana && d.getMonth() === agora.getMonth() && d.getFullYear() === agora.getFullYear()) {
           const dia = d.getDay();
@@ -55,12 +63,12 @@ export function Dashboard() {
       const labels = ['Semana 1', 'Semana 2', 'Semana 3', 'Semana 4'];
       dadosAgrupados = labels.map(label => ({ label, valor: 0, lucro: 0, itens: [] }));
       
-      vendasValidas.forEach((v: any) => {
+      vendasValidas.forEach((v) => {
         const d = new Date(v.dataHoraISO);
         // Filtra pelo mês escolhido pelo usuário no <select>
         if (d.getMonth() === Number(mesSelecionado) && d.getFullYear() === agora.getFullYear()) {
           const dia = d.getDate();
-          let sem = 0;
+          let sem: number;
           if (dia <= 7) sem = 0;
           else if (dia <= 14) sem = 1;
           else if (dia <= 21) sem = 2;
@@ -101,7 +109,7 @@ export function Dashboard() {
           {['diario', 'semanal', 'mensal'].map((f) => (
             <button
               key={f}
-              onClick={() => { setFiltro(f as any); setDetalhesSelecionados(null); }}
+              onClick={() => { setFiltro(f as 'diario' | 'semanal' | 'mensal'); setDetalhesSelecionados(null); }}
               className={`flex-1 md:flex-none px-4 py-2 rounded font-bold capitalize transition text-sm md:text-base ${filtro === f ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
             >
               {f}
@@ -176,7 +184,7 @@ export function Dashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {detalhesSelecionados.itens.map((item: any, i: number) => (
+                  {detalhesSelecionados.itens.map((item, i) => (
                     <tr key={i} className="border-b hover:bg-gray-50 text-sm">
                       <td className="p-3 text-gray-500">{new Date(item.dataHoraISO).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</td>
                       <td className="p-3 font-medium text-gray-800">{item.nome}</td>

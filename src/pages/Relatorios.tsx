@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
+import type { Venda, Produto } from '../types';
 
 export function Relatorios() {
   const { vendas, produtos } = useApp();
@@ -37,7 +38,7 @@ export function Relatorios() {
   const vendasFiltradas = useMemo(() => {
     const agora = new Date();
 
-    return vendas.filter((v: any) => {
+    return vendas.filter((v: Venda) => {
       if (!v.dataHoraISO) return false; // Ignora vendas antigas sem data
 
       const dataVenda = new Date(v.dataHoraISO);
@@ -64,7 +65,7 @@ export function Relatorios() {
 
   // Cálculo dos totais do período com blindagem numérica
   const totais = useMemo(() => {
-    return vendasFiltradas.reduce((acc: { faturamento: number, custo: number, lucro: number, qtd: number }, curr: any) => {
+    return vendasFiltradas.reduce((acc: { faturamento: number, custo: number, lucro: number, qtd: number }, curr: Venda) => {
       acc.faturamento += Number(curr.preco || 0);
       acc.custo += Number(curr.custo || 0);
       acc.lucro += Number(curr.lucro || 0);
@@ -78,7 +79,7 @@ export function Relatorios() {
     const mapa: Record<string, { qtd: number, lucro: number, faturamento: number }> = {};
 
     // Agrupa as vendas por produto
-    vendasFiltradas.forEach((v: any) => {
+    vendasFiltradas.forEach((v: Venda) => {
       if (!mapa[v.nome]) {
         mapa[v.nome] = { qtd: 0, lucro: 0, faturamento: 0 };
       }
@@ -94,7 +95,7 @@ export function Relatorios() {
 
     // Encontra produtos do estoque que NÃO tiveram saída neste período
     const nomesVendidos = Object.keys(mapa);
-    const parados = produtos.filter((p: any) => !nomesVendidos.includes(p.nome));
+    const parados = produtos.filter((p: Produto) => !nomesVendidos.includes(p.nome));
 
     return { rankingProdutos: ranking, produtosParados: parados };
   }, [vendasFiltradas, produtos]);
@@ -102,7 +103,7 @@ export function Relatorios() {
   // Função para Exportar Excel (CSV)
   const exportarCSV = () => {
     const cabecalho = "Data,Produto,Custo,Vendido Por,Lucro\n";
-    const linhas = vendasFiltradas.map((v: any) => {
+    const linhas = vendasFiltradas.map((v: Venda) => {
       const dataFormatada = new Date(v.dataHoraISO).toLocaleString();
       return `"${dataFormatada}","${v.nome}",${Number(v.custo || 0).toFixed(2)},${Number(v.preco || 0).toFixed(2)},${Number(v.lucro || 0).toFixed(2)}`;
     }).join("\n");
@@ -240,7 +241,7 @@ export function Relatorios() {
                   </tr>
                 </thead>
                 <tbody className="divide-y">
-                  {vendasFiltradas.slice().reverse().map((v: any, i: number) => (
+                  {vendasFiltradas.slice().reverse().map((v: Venda, i: number) => (
                     <tr key={i} className="hover:bg-gray-50">
                       <td className="p-3 text-gray-500 whitespace-nowrap">{new Date(v.dataHoraISO).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}</td>
                       <td className="p-3 font-medium text-gray-800">{v.nome}</td>
@@ -303,7 +304,7 @@ export function Relatorios() {
               <p className="text-center text-emerald-600 font-bold text-sm">Excelente! Todos os produtos tiveram saída.</p>
             ) : (
               <div className="space-y-3">
-                {produtosParados.map((item: any, index: number) => (
+                {produtosParados.map((item: Produto, index: number) => (
                   <div key={index} className="flex justify-between items-center border-b pb-2">
                     <div>
                       <p className="font-bold text-gray-800 text-sm md:text-base">{item.nome}</p>
