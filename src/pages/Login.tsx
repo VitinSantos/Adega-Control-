@@ -136,7 +136,7 @@ export function Login({ onLoginSuccess }: LoginProps) {
           </form>
 
           <div className="text-center text-xs text-gray-400 pt-4 border-t border-gray-100">
-            AdegaControl • Todos os direitos reservados
+            AdegaControl • Todos os direitos reservados © 2024
           </div>
         </div>
       </div>
