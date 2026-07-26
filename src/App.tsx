@@ -35,6 +35,10 @@ export default function App() {
     setMenuAberto(false); 
   };
 
+  const handleLogout = () => {
+    setIsLoggedIn(false);
+  };
+
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
       
@@ -46,7 +50,11 @@ export default function App() {
       )}
 
       <div className={`fixed inset-y-0 left-0 transform ${menuAberto ? 'translate-x-0' : '-translate-x-full'} md:relative md:translate-x-0 transition duration-300 ease-in-out z-50 md:flex`}>
-        <Sidebar paginaAtual={paginaAtual} setPaginaAtual={mudarPagina} />
+        <Sidebar 
+          currentTab={paginaAtual} 
+          setCurrentTab={mudarPagina} 
+          onLogout={handleLogout} 
+        />
       </div>
 
       <main className="flex-1 flex flex-col h-screen overflow-hidden w-full">
