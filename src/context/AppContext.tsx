@@ -1,34 +1,40 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import type { Produto, Venda, Receita, Notificacao, TipoNotificacao } from '../types';
+import { gerarId } from '../utils/id';
 
-const AppContext = createContext<any>(null);
+interface AppContextValue {
+  produtos: Produto[];
+  setProdutos: React.Dispatch<React.SetStateAction<Produto[]>>;
+  vendas: Venda[];
+  setVendas: React.Dispatch<React.SetStateAction<Venda[]>>;
+  receitas: Receita[];
+  setReceitas: React.Dispatch<React.SetStateAction<Receita[]>>;
+  notificacoes: Notificacao[];
+  setNotificacoes: React.Dispatch<React.SetStateAction<Notificacao[]>>;
+  adicionarNotificacao: (mensagem: string, tipo?: TipoNotificacao) => void;
+  darBaixa: (produtoId: string, tipo: 'ML' | 'Unidade', quantidade: number) => boolean;
+  nomeProdutoExiste: (nome: string, ignorarId?: string) => boolean;
+}
 
-export function AppProvider({ children }: { children: React.ReactNode }) {
-  const [produtos, setProdutos] = useState(() => {
-    try {
-      const saved = localStorage.getItem('adega_produtos');
-      return saved ? JSON.parse(saved) : [];
-    } catch { return []; }
-  });
+const AppContext = createContext<AppContextValue | null>(null);
 
-  const [vendas, setVendas] = useState(() => {
-    try {
-      const saved = localStorage.getItem('adega_vendas');
-      return saved ? JSON.parse(saved) : [];
-    } catch { return []; }
-  });
+function carregarDoStorage<T>(chave: string, valorPadrao: T): T {
+  try {
+    const salvo = localStorage.getItem(chave);
+    return salvo ? JSON.parse(salvo) : valorPadrao;
+  } catch {
+    return valorPadrao;
+  }
+}
 
-  const [receitas, setReceitas] = useState(() => {
-    try {
-      const saved = localStorage.getItem('adega_receitas');
-      return saved ? JSON.parse(saved) : [];
-    } catch { return []; }
-  });
+export function AppProvider({ children }: { children: ReactNode }) {
+  const [produtos, setProdutos] = useState<Produto[]>(() => carregarDoStorage('adega_produtos', []));
+  const [vendas, setVendas] = useState<Venda[]>(() => carregarDoStorage('adega_vendas', []));
+  const [receitas, setReceitas] = useState<Receita[]>(() => carregarDoStorage('adega_receitas', []));
+  const [notificacoes, setNotificacoes] = useState<Notificacao[]>([]);
 
-  // Estado global de notificações (Toasts)
-  const [notificacoes, setNotificacoes] = useState<any[]>([]);
-
-  const adicionarNotificacao = (mensagem: string, tipo: 'aviso' | 'erro' = 'aviso') => {
-    const id = Date.now() + Math.random();
+  const adicionarNotificacao = (mensagem: string, tipo: TipoNotificacao = 'aviso') => {
+    const id = gerarId();
     setNotificacoes(prev => [...prev, { id, mensagem, tipo }]);
     // Fecha automaticamente após 6 segundos caso o usuário não clique no X
     setTimeout(() => {
@@ -38,47 +44,72 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     localStorage.setItem('adega_produtos', JSON.stringify(produtos));
+  }, [produtos]);
+
+  useEffect(() => {
     localStorage.setItem('adega_vendas', JSON.stringify(vendas));
+  }, [vendas]);
+
+  useEffect(() => {
     localStorage.setItem('adega_receitas', JSON.stringify(receitas));
-  }, [produtos, vendas, receitas]);
+  }, [receitas]);
 
-  const darBaixa = (nome: string, tipo: string, quantidade: number) => {
-    // 1. Verifica as regras de estoque e prepara a notificação ANTES de atualizar o estado
-    const p = produtos.find((x: any) => x.nome === nome);
-    if (p) {
-      let desconto = quantidade;
-      if (tipo === 'ML' && p.mlPorGarrafa > 0) {
-        desconto = quantidade / p.mlPorGarrafa;
-      }
-      const estoqueFinal = p.qtd - desconto;
-      const garrafasFechadas = Math.trunc(estoqueFinal); // Pega a unidade inteira sem os MLs
+  // Evita produtos duplicados pelo nome (comparação case-insensitive, ignorando espaços extras)
+  const nomeProdutoExiste = (nome: string, ignorarId?: string) => {
+    const alvo = nome.trim().toLowerCase();
+    return produtos.some(p => p.id !== ignorarId && p.nome.trim().toLowerCase() === alvo);
+  };
 
-      if (estoqueFinal <= 0) {
-        adicionarNotificacao(`Estoque INDISPONÍVEL/NEGATIVO para: ${p.nome} (${garrafasFechadas} un)`, 'erro');
-      } else if (garrafasFechadas <= p.alertaMinimo) {
-        adicionarNotificacao(`Estoque crítico para: ${p.nome} (Restam apenas ${garrafasFechadas} un)`, 'aviso');
-      }
+  // Retorna true se a baixa foi aplicada, false se não havia produto ou estoque insuficiente
+  const darBaixa = (produtoId: string, tipo: 'ML' | 'Unidade', quantidade: number): boolean => {
+    const p = produtos.find(x => x.id === produtoId);
+    if (!p) {
+      adicionarNotificacao(`Produto não encontrado para dar baixa no estoque.`, 'erro');
+      return false;
     }
 
-    // 2. Atualiza o estoque permitindo valores negativos
-    setProdutos((prev: any[]) => prev.map(p => {
-      if (p.nome === nome) {
-        let desconto = quantidade;
-        if (tipo === 'ML' && p.mlPorGarrafa > 0) {
-          desconto = quantidade / p.mlPorGarrafa;
-        }
-        // Removido o Math.max para permitir que o estoque fique negativo (-1, -2, etc)
-        return { ...p, qtd: p.qtd - desconto };
-      }
-      return p;
-    }));
+    let desconto = quantidade;
+    if (tipo === 'ML' && p.mlPorGarrafa > 0) {
+      desconto = quantidade / p.mlPorGarrafa;
+    }
+    const estoqueFinal = p.qtd - desconto;
+    const garrafasFechadas = Math.trunc(estoqueFinal);
+
+    if (estoqueFinal < 0) {
+      adicionarNotificacao(`Estoque insuficiente para: ${p.nome}. Venda bloqueada.`, 'erro');
+      return false;
+    }
+
+    if (garrafasFechadas <= p.alertaMinimo) {
+      adicionarNotificacao(`Estoque crítico para: ${p.nome} (Restam apenas ${garrafasFechadas} un)`, 'aviso');
+    }
+
+    setProdutos(prev => prev.map(prod =>
+      prod.id === produtoId ? { ...prod, qtd: estoqueFinal } : prod
+    ));
+    return true;
   };
 
   return (
-    <AppContext.Provider value={{ produtos, setProdutos, vendas, setVendas, receitas, setReceitas, darBaixa, notificacoes, setNotificacoes }}>
+    <AppContext.Provider value={{
+      produtos, setProdutos,
+      vendas, setVendas,
+      receitas, setReceitas,
+      notificacoes, setNotificacoes,
+      adicionarNotificacao,
+      darBaixa,
+      nomeProdutoExiste,
+    }}>
       {children}
     </AppContext.Provider>
   );
 }
 
-export const useApp = () => useContext(AppContext);
+// eslint-disable-next-line react-refresh/only-export-components -- hook de conveniência do mesmo contexto, padrão comum em apps React
+export function useApp(): AppContextValue {
+  const ctx = useContext(AppContext);
+  if (!ctx) {
+    throw new Error('useApp precisa ser usado dentro de um <AppProvider>');
+  }
+  return ctx;
+}
