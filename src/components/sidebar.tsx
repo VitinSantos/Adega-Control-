@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { LayoutDashboard, ShoppingCart, Package, BookOpen, BarChart3, Settings, LogOut, MessageCircle, Moon, Camera, X, AlertTriangle } from 'lucide-react';
 
 interface SidebarProps {
@@ -13,7 +14,7 @@ export function Sidebar({ currentTab, setCurrentTab, onLogout }: SidebarProps) {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showConfigModal, setShowConfigModal] = useState(false);
   
-  // Estados de dados com persistência no localStorage para manter a foto nos próximos logins
+  // Estados de dados com persistência no localStorage
   const [avatarUrl, setAvatarUrl] = useState(() => {
     return localStorage.getItem('adegacontrol_avatar') || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150';
   });
@@ -35,7 +36,6 @@ export function Sidebar({ currentTab, setCurrentTab, onLogout }: SidebarProps) {
   const confirmDiscard = () => {
     setIsDirty(false);
     setShowUnsavedAlert(false);
-    // Restaura a foto salva anteriormente no localStorage caso tenha alterado sem salvar
     setAvatarUrl(localStorage.getItem('adegacontrol_avatar') || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150');
     if (pendingAction) pendingAction();
   };
@@ -69,7 +69,7 @@ export function Sidebar({ currentTab, setCurrentTab, onLogout }: SidebarProps) {
 
   return (
     <>
-      <aside className="w-64 bg-white border-r border-gray-200 flex flex-col justify-between h-screen sticky top-0 text-gray-900">
+      <aside className="w-64 bg-white border-r border-gray-200 flex flex-col justify-between h-screen sticky top-0 text-gray-900 z-30">
         
         {/* Topo / Logo e Navegação */}
         <div>
@@ -101,14 +101,14 @@ export function Sidebar({ currentTab, setCurrentTab, onLogout }: SidebarProps) {
           </nav>
         </div>
 
-        {/* Rodapé Estilo Gemini (Foto, Nome e Configurações) */}
+        {/* Rodapé Estilo Gemini */}
         <div className="p-4 border-t border-gray-100 relative">
           
           {/* Menu flutuante do perfil com Backdrop para fechar ao clicar fora */}
           {showProfileMenu && (
             <>
               <div 
-                className="fixed inset-0 z-40" 
+                className="fixed inset-0 z-40 bg-transparent" 
                 onClick={() => setShowProfileMenu(false)} 
               />
               <div className="absolute bottom-20 left-4 right-4 bg-white rounded-2xl shadow-xl border border-gray-200 p-2 z-50 animate-in fade-in zoom-in-95 duration-150">
@@ -137,7 +137,7 @@ export function Sidebar({ currentTab, setCurrentTab, onLogout }: SidebarProps) {
           )}
 
           <div className="flex items-center justify-between bg-gray-50 hover:bg-gray-100/80 p-2 rounded-2xl transition border border-gray-100">
-            {/* Foto e Nome (Clica abre o menu do perfil) */}
+            {/* Foto e Nome */}
             <button
               onClick={() => setShowProfileMenu(!showProfileMenu)}
               className="flex items-center gap-3 text-left flex-1 min-w-0"
@@ -153,7 +153,7 @@ export function Sidebar({ currentTab, setCurrentTab, onLogout }: SidebarProps) {
               </div>
             </button>
 
-            {/* Botão de Configurações (Abre o modal de Config) */}
+            {/* Botão de Configurações */}
             <button
               onClick={() => setShowConfigModal(true)}
               className="p-2 text-gray-500 hover:text-emerald-600 hover:bg-white rounded-xl transition shadow-sm"
@@ -165,14 +165,14 @@ export function Sidebar({ currentTab, setCurrentTab, onLogout }: SidebarProps) {
         </div>
       </aside>
 
-      {/* 1. Modal de Perfil / Alterar Imagem */}
-      {showProfileModal && (
+      {/* 1. Modal de Perfil / Alterar Imagem (Via Portal para o Body) */}
+      {showProfileModal && createPortal(
         <div 
-          className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 animate-in fade-in duration-200"
           onClick={() => handleTryClose(() => setShowProfileModal(false))}
         >
           <div 
-            className="bg-white rounded-3xl max-w-lg w-full p-8 shadow-2xl border border-gray-100 relative space-y-6 animate-in fade-in zoom-in-95 duration-200"
+            className="bg-white rounded-3xl max-w-lg w-full p-8 shadow-2xl border border-gray-100 relative space-y-6"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b border-gray-100 pb-4">
@@ -229,17 +229,18 @@ export function Sidebar({ currentTab, setCurrentTab, onLogout }: SidebarProps) {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
-      {/* 2. Modal de Configurações (Mais espaçoso e centralizado) */}
-      {showConfigModal && (
+      {/* 2. Modal de Configurações centralizado na tela (Via Portal para o Body) */}
+      {showConfigModal && createPortal(
         <div 
-          className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 animate-in fade-in duration-200"
           onClick={() => handleTryClose(() => setShowConfigModal(false))}
         >
           <div 
-            className="bg-white rounded-3xl max-w-xl w-full p-8 shadow-2xl border border-gray-100 relative space-y-6 animate-in fade-in zoom-in-95 duration-200"
+            className="bg-white rounded-3xl max-w-xl w-full p-8 shadow-2xl border border-gray-100 relative space-y-6"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b border-gray-100 pb-4">
@@ -327,12 +328,13 @@ export function Sidebar({ currentTab, setCurrentTab, onLogout }: SidebarProps) {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
-      {/* 3. Modal de Confirmação de Saída sem Salvar */}
-      {showUnsavedAlert && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+      {/* 3. Modal de Confirmação de Saída sem Salvar (Via Portal para o Body) */}
+      {showUnsavedAlert && createPortal(
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[10000] flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-gray-100 text-center space-y-4">
             <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center mx-auto shadow-sm">
               <AlertTriangle size={24} />
@@ -354,7 +356,8 @@ export function Sidebar({ currentTab, setCurrentTab, onLogout }: SidebarProps) {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );
