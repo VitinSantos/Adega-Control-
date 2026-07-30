@@ -1,18 +1,17 @@
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { gerarId } from '../utils/id';
-import type { Ingrediente, Receita } from '../types';
+import type { Ingrediente } from '../types';
 
 export function Receitas() {
-  const { produtos, receitas, setReceitas, adicionarNotificacao } = useApp();
+  const { produtos, receitas, adicionarNotificacao, criarReceita, excluirReceita } = useApp();
   const [ingredientes, setIngredientes] = useState<Ingrediente[]>([]);
+  const [salvando, setSalvando] = useState(false);
 
-  // Estado dos campos do "adicionar ingrediente", agora sem tocar no DOM diretamente
   const [produtoSelecionadoId, setProdutoSelecionadoId] = useState('');
   const [tipoSelecionado, setTipoSelecionado] = useState<'ML' | 'Unidade'>('ML');
   const [qtdIngrediente, setQtdIngrediente] = useState('');
 
-  const salvar = (e: React.FormEvent<HTMLFormElement>) => {
+  const salvar = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const f = e.currentTarget;
     if (ingredientes.length === 0) {
@@ -23,12 +22,16 @@ export function Receitas() {
     const nome = (f.elements.namedItem('nome') as HTMLInputElement).value.trim();
     const preco = Number((f.elements.namedItem('preco') as HTMLInputElement).value);
 
-    const novaReceita: Receita = { id: gerarId(), nome, preco, ingredientes };
-    setReceitas([...receitas, novaReceita]);
-    f.reset();
-    setIngredientes([]);
-    setProdutoSelecionadoId('');
-    setQtdIngrediente('');
+    setSalvando(true);
+    const sucesso = await criarReceita({ nome, preco, ingredientes });
+    setSalvando(false);
+
+    if (sucesso) {
+      f.reset();
+      setIngredientes([]);
+      setProdutoSelecionadoId('');
+      setQtdIngrediente('');
+    }
   };
 
   const adicionarIngrediente = () => {
@@ -50,12 +53,17 @@ export function Receitas() {
     setQtdIngrediente('');
   };
 
+  const handleExcluir = async (id: string, nome: string) => {
+    if (!confirm(`Tem certeza que deseja excluir a receita "${nome}"?`)) return;
+    await excluirReceita(id);
+  };
+
   return (
     <div className="p-8">
       <h2 className="text-2xl font-bold mb-6">Cadastrar Receitas</h2>
       <form onSubmit={salvar} className="bg-white p-4 border rounded shadow-sm mb-8">
         <input name="nome" placeholder="Nome da Receita" className="border p-2 w-full mb-2" required />
-        <input name="preco" type="number" step="0.01" placeholder="Preço de Venda" className="border p-2 w-full mb-4" required />
+        <input name="preco" type="number" step="0.01" min="0" placeholder="Preço de Venda" className="border p-2 w-full mb-4" required />
 
         <div className="flex gap-2 mb-4 items-center">
           <select
@@ -78,6 +86,7 @@ export function Receitas() {
             value={qtdIngrediente}
             onChange={(e) => setQtdIngrediente(e.target.value)}
             type="number"
+            min="0"
             placeholder="Qtd"
             className="border p-2 w-20"
           />
@@ -93,7 +102,9 @@ export function Receitas() {
             </li>
           ))}
         </ul>
-        <button type="submit" className="bg-emerald-600 text-white w-full py-2 font-bold rounded">Salvar Receita Completa</button>
+        <button type="submit" disabled={salvando} className="bg-emerald-600 text-white w-full py-2 font-bold rounded disabled:opacity-50">
+          {salvando ? 'Salvando...' : 'Salvar Receita Completa'}
+        </button>
       </form>
 
       <h2 className="text-xl font-bold mb-4">Receitas Cadastradas</h2>
@@ -104,7 +115,7 @@ export function Receitas() {
               <p className="font-bold text-lg">{r.nome}</p>
               <p className="text-sm text-gray-500">R$ {r.preco} | Ingredientes: {r.ingredientes.map((ing) => ing.nome).join(', ')}</p>
             </div>
-            <button onClick={() => setReceitas(receitas.filter((x) => x.id !== r.id))} className="bg-red-500 text-white px-3 py-1 rounded">Excluir</button>
+            <button onClick={() => handleExcluir(r.id, r.nome)} className="bg-red-500 text-white px-3 py-1 rounded">Excluir</button>
           </div>
         ))}
       </div>
