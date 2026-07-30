@@ -1,18 +1,20 @@
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { gerarId } from '../utils/id';
 import type { Produto, Receita, Venda } from '../types';
 
 type ItemVenda = (Produto | Receita) & { tipo?: 'ML' | 'Unidade' };
 
 export function Pdv() {
-  const { produtos, receitas, vendas, setVendas, darBaixa, notificacoes, setNotificacoes, adicionarNotificacao } = useApp();
+  const { produtos, receitas, vendas, darBaixa, registrarVenda, notificacoes, setNotificacoes, adicionarNotificacao } = useApp();
   const [iniciandoVenda, setIniciandoVenda] = useState(false);
   const [busca, setBusca] = useState('');
+  const [processando, setProcessando] = useState(false);
 
   const ehReceita = (item: ItemVenda): item is Receita => 'ingredientes' in item;
 
-  const registrarVenda = (item: ItemVenda) => {
+  const registrarItemVenda = async (item: ItemVenda) => {
+    if (processando) return; // evita clique duplo enquanto salva no banco
+    setProcessando(true);
     let custoDoItem: number;
 
     if (ehReceita(item)) {
@@ -21,16 +23,17 @@ export function Pdv() {
         const prod = produtos.find((p) => p.id === ing.produtoId);
         if (!prod) {
           adicionarNotificacao(`Ingrediente "${ing.nome}" não encontrado no estoque.`, 'erro');
+          setProcessando(false);
           return;
         }
         const descontoPrevisto = ing.tipo === 'ML' && prod.mlPorGarrafa > 0 ? ing.qtd / prod.mlPorGarrafa : ing.qtd;
         if (prod.qtd - descontoPrevisto < 0) {
           adicionarNotificacao(`Estoque insuficiente de "${prod.nome}" para preparar "${item.nome}".`, 'erro');
+          setProcessando(false);
           return;
         }
       }
 
-      // Calcula custo total baseado no preço de custo de cada ingrediente
       custoDoItem = item.ingredientes.reduce((acc, ing) => {
         const prod = produtos.find((p) => p.id === ing.produtoId);
         if (!prod) return acc;
@@ -40,18 +43,26 @@ export function Pdv() {
         return acc + prod.precoCusto * ing.qtd;
       }, 0);
 
-      // Agora sim aplica a baixa de cada ingrediente
-      item.ingredientes.forEach((ing) => darBaixa(ing.produtoId, ing.tipo, ing.qtd));
+      // Aplica a baixa de cada ingrediente, um de cada vez (aguardando o banco confirmar)
+      for (const ing of item.ingredientes) {
+        const sucesso = await darBaixa(ing.produtoId, ing.tipo, ing.qtd);
+        if (!sucesso) {
+          setProcessando(false);
+          return;
+        }
+      }
     } else {
       custoDoItem = item.precoCusto || 0;
-      const sucesso = darBaixa(item.id, 'Unidade', 1);
-      if (!sucesso) return; // venda bloqueada por falta de estoque
+      const sucesso = await darBaixa(item.id, 'Unidade', 1);
+      if (!sucesso) {
+        setProcessando(false);
+        return;
+      }
     }
 
     const precoVenda = Number(item.preco || 0);
 
-    const novaVenda: Venda = {
-      id: gerarId(),
+    const novaVenda: Omit<Venda, 'id'> = {
       nome: item.nome,
       preco: precoVenda,
       custo: custoDoItem,
@@ -60,7 +71,8 @@ export function Pdv() {
       dataHoraISO: new Date().toISOString(),
     };
 
-    setVendas([...vendas, novaVenda]);
+    await registrarVenda(novaVenda);
+    setProcessando(false);
     setIniciandoVenda(false);
     setBusca('');
   };
@@ -101,8 +113,9 @@ export function Pdv() {
               .map((item) => (
                 <button
                   key={item.id}
-                  onClick={() => registrarVenda(item)}
-                  className="bg-white border-2 border-gray-100 p-4 rounded hover:border-emerald-500 hover:bg-emerald-50 text-left transition flex flex-col justify-between"
+                  disabled={processando}
+                  onClick={() => registrarItemVenda(item)}
+                  className="bg-white border-2 border-gray-100 p-4 rounded hover:border-emerald-500 hover:bg-emerald-50 text-left transition flex flex-col justify-between disabled:opacity-50"
                 >
                   <p className="font-bold text-gray-800">{item.nome}</p>
                   <p className="text-emerald-600 font-bold mt-1">R$ {Number(item.preco || 0).toFixed(2)}</p>
