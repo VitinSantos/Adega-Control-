@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 export default {
+  darkMode: 'class',
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
@@ -8,14 +9,14 @@ export default {
     extend: {
       colors: {
         adega: {
-          bg: "#F9FAFB",       // Fundo cinza bem claro
-          card: "#FFFFFF",     // Fundo branco pros blocos
-          text: "#111827",     // Texto escuro (quase preto)
-          muted: "#6B7280",    // Textos secundários
-          border: "#E5E7EB",   // Linhas de separação
-          success: "#10B981",  // Verde para lucros/ações
-          danger: "#EF4444",   // Vermelho para alertas
-          primary: "#111827",  // Botões principais pretos
+          bg: "var(--adega-bg)",
+          card: "var(--adega-card)",
+          text: "var(--adega-text)",
+          muted: "var(--adega-muted)",
+          border: "var(--adega-border)",
+          success: "#10B981",
+          danger: "#EF4444",
+          primary: "var(--adega-primary)",
         }
       }
     },
