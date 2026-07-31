@@ -124,7 +124,7 @@ export function Relatorios() {
   };
 
   return (
-    <div className="p-3 md:p-6 lg:p-8 bg-gray-50 min-h-screen">
+    <div className="p-3 md:p-6 lg:p-8 bg-adega-bg text-adega-text min-h-screen transition-colors">
       {/* Cabeçalho que aparece na impressão */}
       <div className="hidden print:block mb-8 text-center border-b pb-4">
         <h1 className="text-3xl font-bold text-gray-800">Relatório Financeiro e Estoque</h1>
@@ -138,42 +138,42 @@ export function Relatorios() {
       </div>
 
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 print:hidden">
-        <h2 className="text-xl md:text-2xl font-bold text-gray-800">Central de Relatórios</h2>
+        <h2 className="text-xl md:text-2xl font-bold text-adega-text">Central de Relatórios</h2>
         <div className="flex flex-wrap gap-2 w-full md:w-auto">
-          <button onClick={exportarCSV} className="flex-1 md:flex-none bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded font-bold transition shadow-sm text-sm md:text-base">
+          <button onClick={exportarCSV} className="flex-1 md:flex-none bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl font-bold transition shadow-sm text-sm md:text-base">
             Baixar Excel
           </button>
-          <button onClick={exportarPDF} className="flex-1 md:flex-none bg-gray-800 hover:bg-gray-900 text-white px-4 py-2 rounded font-bold transition shadow-sm text-sm md:text-base">
+          <button onClick={exportarPDF} className="flex-1 md:flex-none bg-adega-card border border-adega-border hover:bg-adega-border/50 text-adega-text px-4 py-2 rounded-xl font-bold transition shadow-sm text-sm md:text-base">
             Imprimir / PDF
           </button>
         </div>
       </div>
 
       {/* Formulário de Filtros - Oculto na Impressão */}
-      <form onSubmit={lidarComPesquisa} className="bg-white p-4 md:p-6 rounded shadow-sm border mb-8 print:hidden">
-        <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">Filtros Personalizados</h3>
+      <form onSubmit={lidarComPesquisa} className="bg-adega-card border border-adega-border p-4 md:p-6 rounded-3xl shadow-sm mb-8 print:hidden">
+        <h3 className="text-xs font-bold text-adega-muted uppercase tracking-wider mb-4">Filtros Personalizados</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
           <div className="flex flex-col gap-1">
-            <label className="text-sm font-semibold text-gray-600">Data Inicial</label>
-            <input type="date" value={inputInicio} onChange={(e) => setInputInicio(e.target.value)} className="border p-2 rounded outline-none focus:border-blue-500" />
+            <label className="text-xs font-semibold text-adega-muted">Data Inicial</label>
+            <input type="date" value={inputInicio} onChange={(e) => setInputInicio(e.target.value)} className="border border-adega-border p-3 rounded-xl bg-adega-bg text-adega-text outline-none focus:border-blue-500" />
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-sm font-semibold text-gray-600">Data Final</label>
-            <input type="date" value={inputFim} onChange={(e) => setInputFim(e.target.value)} className="border p-2 rounded outline-none focus:border-blue-500" />
+            <label className="text-xs font-semibold text-adega-muted">Data Final</label>
+            <input type="date" value={inputFim} onChange={(e) => setInputFim(e.target.value)} className="border border-adega-border p-3 rounded-xl bg-adega-bg text-adega-text outline-none focus:border-blue-500" />
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-sm font-semibold text-gray-600">Buscar por Produto</label>
-            <input type="text" value={inputBusca} onChange={(e) => setInputBusca(e.target.value)} placeholder="Ex: Combo..." className="border p-2 rounded outline-none focus:border-blue-500" />
+            <label className="text-xs font-semibold text-adega-muted">Buscar por Produto</label>
+            <input type="text" value={inputBusca} onChange={(e) => setInputBusca(e.target.value)} placeholder="Ex: Combo..." className="border border-adega-border p-3 rounded-xl bg-adega-bg text-adega-text placeholder-adega-muted outline-none focus:border-blue-500" />
           </div>
 
-          <button type="submit" className="bg-emerald-600 hover:bg-emerald-700 text-white p-2 md:p-2.5 rounded font-bold transition shadow-sm w-full">
+          <button type="submit" className="bg-emerald-600 hover:bg-emerald-700 text-white p-3 rounded-xl font-bold transition shadow-md shadow-emerald-600/25 w-full">
             Pesquisar
           </button>
         </div>
 
         {(filtroInicio || filtroFim || filtroBusca) && (
           <div className="mt-4 flex justify-end">
-            <button type="button" onClick={limparFiltros} className="text-sm text-red-500 font-bold hover:underline">
+            <button type="button" onClick={limparFiltros} className="text-xs text-red-500 font-bold hover:underline">
               Limpar Filtros e Voltar ao Mês Atual
             </button>
           </div>
@@ -182,35 +182,35 @@ export function Relatorios() {
 
       {/* Cartões de Resumo do Período */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <div className="bg-white p-4 rounded border shadow-sm">
-          <p className="text-xs font-bold text-gray-500 uppercase">Itens Vendidos</p>
-          <p className="text-xl md:text-2xl font-bold text-gray-800">{totais.qtd} un</p>
+        <div className="bg-adega-card border border-adega-border p-5 rounded-2xl shadow-sm">
+          <p className="text-[11px] font-bold text-adega-muted uppercase">Itens Vendidos</p>
+          <p className="text-xl md:text-2xl font-bold text-adega-text mt-1">{totais.qtd} un</p>
         </div>
-        <div className="bg-white p-4 rounded border shadow-sm">
-          <p className="text-xs font-bold text-gray-500 uppercase">Custo Total</p>
-          <p className="text-xl md:text-2xl font-bold text-red-600">R$ {totais.custo.toFixed(2)}</p>
+        <div className="bg-adega-card border border-adega-border p-5 rounded-2xl shadow-sm">
+          <p className="text-[11px] font-bold text-adega-muted uppercase">Custo Total</p>
+          <p className="text-xl md:text-2xl font-bold text-red-500 mt-1">R$ {totais.custo.toFixed(2)}</p>
         </div>
-        <div className="bg-white p-4 rounded border shadow-sm">
-          <p className="text-xs font-bold text-gray-500 uppercase">Faturamento Bruto</p>
-          <p className="text-xl md:text-2xl font-bold text-blue-600">R$ {totais.faturamento.toFixed(2)}</p>
+        <div className="bg-adega-card border border-adega-border p-5 rounded-2xl shadow-sm">
+          <p className="text-[11px] font-bold text-adega-muted uppercase">Faturamento Bruto</p>
+          <p className="text-xl md:text-2xl font-bold text-blue-500 mt-1">R$ {totais.faturamento.toFixed(2)}</p>
         </div>
-        <div className="bg-white p-4 rounded border shadow-sm border-b-4 border-emerald-500">
-          <p className="text-xs font-bold text-gray-500 uppercase">Lucro Limpo</p>
-          <p className="text-xl md:text-2xl font-bold text-emerald-600">R$ {totais.lucro.toFixed(2)}</p>
+        <div className="bg-adega-card border border-adega-border p-5 rounded-2xl shadow-sm border-b-4 border-emerald-500">
+          <p className="text-[11px] font-bold text-adega-muted uppercase">Lucro Limpo</p>
+          <p className="text-xl md:text-2xl font-bold text-emerald-500 mt-1">R$ {totais.lucro.toFixed(2)}</p>
         </div>
       </div>
 
       {/* Abas de Navegação */}
-      <div className="flex flex-wrap gap-2 md:gap-4 border-b mb-6 print:hidden">
+      <div className="flex flex-wrap gap-2 md:gap-4 border-b border-adega-border mb-6 print:hidden">
         <button
           onClick={() => setAbaAtiva('historico')}
-          className={`pb-2 px-2 md:px-4 font-bold transition-all text-sm md:text-base ${abaAtiva === 'historico' ? 'border-b-2 border-gray-800 text-gray-800' : 'text-gray-400 hover:text-gray-600'}`}
+          className={`pb-2 px-2 md:px-4 font-bold transition-all text-sm md:text-base ${abaAtiva === 'historico' ? 'border-b-2 border-adega-text text-adega-text' : 'text-adega-muted hover:text-adega-text'}`}
         >
           Histórico Detalhado
         </button>
         <button
           onClick={() => setAbaAtiva('analise')}
-          className={`pb-2 px-2 md:px-4 font-bold transition-all text-sm md:text-base ${abaAtiva === 'analise' ? 'border-b-2 border-gray-800 text-gray-800' : 'text-gray-400 hover:text-gray-600'}`}
+          className={`pb-2 px-2 md:px-4 font-bold transition-all text-sm md:text-base ${abaAtiva === 'analise' ? 'border-b-2 border-adega-text text-adega-text' : 'text-adega-muted hover:text-adega-text'}`}
         >
           Curva ABC & Estoque Parado
         </button>
@@ -218,36 +218,36 @@ export function Relatorios() {
 
       {/* Tabela de Histórico */}
       <div className={`${abaAtiva === 'historico' ? 'block' : 'hidden'} print:block mb-8`}>
-        <div className="bg-white border rounded shadow-sm overflow-hidden w-full">
-          <div className="p-4 bg-gray-50 border-b print:bg-white flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-            <h3 className="font-bold text-gray-800">
+        <div className="bg-adega-card border border-adega-border rounded-3xl shadow-sm overflow-hidden w-full">
+          <div className="p-4 md:p-6 bg-adega-bg border-b border-adega-border print:bg-white flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+            <h3 className="font-bold text-adega-text">
               Listagem de Vendas ({filtroInicio || filtroFim ? 'Período Selecionado' : 'Mês Atual'})
             </h3>
-            <span className="text-sm font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded">{vendasFiltradas.length} registros</span>
+            <span className="text-xs font-bold text-blue-400 bg-blue-500/10 px-3 py-1.5 rounded-xl">{vendasFiltradas.length} registros</span>
           </div>
 
           <div className="w-full overflow-x-auto max-h-96 print:max-h-none print:overflow-visible">
             {vendasFiltradas.length === 0 ? (
-              <p className="p-6 text-center text-gray-500 italic">Nenhum registro encontrado para este filtro.</p>
+              <p className="p-6 text-center text-adega-muted italic text-xs">Nenhum registro encontrado para este filtro.</p>
             ) : (
-              <table className="w-full text-left text-sm min-w-[600px]">
-                <thead className="bg-gray-100 text-gray-600 sticky top-0 z-10 print:static">
+              <table className="w-full text-left text-sm min-w-[600px] border-collapse">
+                <thead className="bg-adega-bg text-adega-muted sticky top-0 z-10 print:static border-b border-adega-border text-xs">
                   <tr>
-                    <th className="p-3 whitespace-nowrap">Data e Hora</th>
-                    <th className="p-3">Produto</th>
-                    <th className="p-3">Custo</th>
-                    <th className="p-3">Valor de Venda</th>
-                    <th className="p-3">Lucro</th>
+                    <th className="p-4 whitespace-nowrap">Data e Hora</th>
+                    <th className="p-4">Produto</th>
+                    <th className="p-4">Custo</th>
+                    <th className="p-4">Valor de Venda</th>
+                    <th className="p-4">Lucro</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y">
+                <tbody className="divide-y divide-adega-border">
                   {vendasFiltradas.slice().reverse().map((v: Venda, i: number) => (
-                    <tr key={i} className="hover:bg-gray-50">
-                      <td className="p-3 text-gray-500 whitespace-nowrap">{new Date(v.dataHoraISO).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}</td>
-                      <td className="p-3 font-medium text-gray-800">{v.nome}</td>
-                      <td className="p-3 text-red-500">R$ {Number(v.custo || 0).toFixed(2)}</td>
-                      <td className="p-3 font-medium">R$ {Number(v.preco || 0).toFixed(2)}</td>
-                      <td className="p-3 font-bold text-emerald-600">R$ {Number(v.lucro || 0).toFixed(2)}</td>
+                    <tr key={i} className="hover:bg-adega-bg/50 transition-colors">
+                      <td className="p-4 text-adega-muted whitespace-nowrap text-xs">{new Date(v.dataHoraISO).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}</td>
+                      <td className="p-4 font-medium text-adega-text">{v.nome}</td>
+                      <td className="p-4 text-red-500">R$ {Number(v.custo || 0).toFixed(2)}</td>
+                      <td className="p-4 font-medium text-adega-text">R$ {Number(v.preco || 0).toFixed(2)}</td>
+                      <td className="p-4 font-bold text-emerald-500">R$ {Number(v.lucro || 0).toFixed(2)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -261,30 +261,30 @@ export function Relatorios() {
       <div className={`${abaAtiva === 'analise' ? 'block' : 'hidden'} print:block grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6`}>
 
         {/* Curva ABC - Mais Vendidos */}
-        <div className="bg-white border rounded shadow-sm w-full overflow-hidden">
-          <div className="p-4 bg-gray-50 border-b print:bg-white">
-            <h3 className="font-bold text-gray-800">Curva ABC (Top Lucro)</h3>
-            <p className="text-xs text-gray-500">Produtos que mais geraram retorno no período</p>
+        <div className="bg-adega-card border border-adega-border rounded-3xl shadow-sm w-full overflow-hidden">
+          <div className="p-4 md:p-6 bg-adega-bg border-b border-adega-border print:bg-white">
+            <h3 className="font-bold text-adega-text">Curva ABC (Top Lucro)</h3>
+            <p className="text-xs text-adega-muted mt-0.5">Produtos que mais geraram retorno no período</p>
           </div>
-          <div className="p-4">
+          <div className="p-4 md:p-6">
             {rankingProdutos.length === 0 ? (
-              <p className="text-center text-gray-500 italic text-sm">Sem dados suficientes.</p>
+              <p className="text-center text-adega-muted italic text-xs">Sem dados suficientes.</p>
             ) : (
               <div className="space-y-3">
                 {rankingProdutos.map((item, index) => (
-                  <div key={item.nome} className="flex justify-between items-center border-b pb-2">
+                  <div key={item.nome} className="flex justify-between items-center border-b border-adega-border/50 pb-3">
                     <div className="flex items-center gap-3">
-                      <span className={`min-w-[24px] h-6 flex items-center justify-center rounded-full text-xs font-bold ${index === 0 ? 'bg-amber-100 text-amber-700' : index === 1 ? 'bg-gray-200 text-gray-700' : index === 2 ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-500'}`}>
+                      <span className={`min-w-[28px] h-7 flex items-center justify-center rounded-xl text-xs font-bold ${index === 0 ? 'bg-amber-500/20 text-amber-500' : index === 1 ? 'bg-adega-border text-adega-text' : index === 2 ? 'bg-orange-500/20 text-orange-500' : 'bg-adega-bg text-adega-muted'}`}>
                         {index + 1}
                       </span>
                       <div>
-                        <p className="font-bold text-gray-800 text-sm md:text-base">{item.nome}</p>
-                        <p className="text-xs text-gray-500">{item.qtd} unidades vendidas</p>
+                        <p className="font-bold text-adega-text text-sm md:text-base">{item.nome}</p>
+                        <p className="text-xs text-adega-muted">{item.qtd} unidades vendidas</p>
                       </div>
                     </div>
                     <div className="text-right whitespace-nowrap ml-2">
-                      <p className="font-bold text-emerald-600 text-sm md:text-base">R$ {Number(item.lucro).toFixed(2)}</p>
-                      <p className="text-[10px] text-gray-400 uppercase">LUCRO</p>
+                      <p className="font-bold text-emerald-500 text-sm md:text-base">R$ {Number(item.lucro).toFixed(2)}</p>
+                      <p className="text-[10px] text-adega-muted uppercase">LUCRO</p>
                     </div>
                   </div>
                 ))}
@@ -294,25 +294,25 @@ export function Relatorios() {
         </div>
 
         {/* Estoque Parado */}
-        <div className="bg-white border rounded shadow-sm w-full overflow-hidden">
-          <div className="p-4 bg-red-50 border-b print:bg-white print:border-b-2 print:border-red-500">
-            <h3 className="font-bold text-red-800">Alerta de Estoque Parado</h3>
-            <p className="text-xs text-red-600">Produtos com ZERO saídas no período</p>
+        <div className="bg-adega-card border border-adega-border rounded-3xl shadow-sm w-full overflow-hidden">
+          <div className="p-4 md:p-6 bg-red-500/10 border-b border-adega-border print:bg-white print:border-b-2 print:border-red-500">
+            <h3 className="font-bold text-red-500">Alerta de Estoque Parado</h3>
+            <p className="text-xs text-red-400 mt-0.5">Produtos com ZERO saídas no período</p>
           </div>
-          <div className="p-4">
+          <div className="p-4 md:p-6">
             {produtosParados.length === 0 ? (
-              <p className="text-center text-emerald-600 font-bold text-sm">Excelente! Todos os produtos tiveram saída.</p>
+              <p className="text-center text-emerald-500 font-bold text-xs py-4">Excelente! Todos os produtos tiveram saída.</p>
             ) : (
               <div className="space-y-3">
                 {produtosParados.map((item: Produto, index: number) => (
-                  <div key={index} className="flex justify-between items-center border-b pb-2">
+                  <div key={index} className="flex justify-between items-center border-b border-adega-border/50 pb-3">
                     <div>
-                      <p className="font-bold text-gray-800 text-sm md:text-base">{item.nome}</p>
-                      <p className="text-xs text-gray-500">{item.qtd} unidades presas no estoque</p>
+                      <p className="font-bold text-adega-text text-sm md:text-base">{item.nome}</p>
+                      <p className="text-xs text-adega-muted">{item.qtd} unidades presas no estoque</p>
                     </div>
                     <div className="text-right whitespace-nowrap ml-2">
-                      <p className="font-medium text-red-600 text-sm md:text-base">R$ {Number(item.precoCusto || 0).toFixed(2)}</p>
-                      <p className="text-[10px] text-gray-400 uppercase">Custo / Un</p>
+                      <p className="font-medium text-red-500 text-sm md:text-base">R$ {Number(item.precoCusto || 0).toFixed(2)}</p>
+                      <p className="text-[10px] text-adega-muted uppercase">Custo / Un</p>
                     </div>
                   </div>
                 ))}

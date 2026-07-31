@@ -90,27 +90,27 @@ export function Dashboard() {
   const maxBarValue = Math.max(...chartData.map(d => d.valor), 1);
 
   return (
-    <div className="p-3 md:p-6 lg:p-8">
-      <h2 className="text-xl md:text-2xl font-bold mb-6 text-gray-800">Dashboard de Vendas</h2>
+    <div className="p-3 md:p-6 lg:p-8 bg-adega-bg text-adega-text min-h-full transition-colors">
+      <h2 className="text-xl md:text-2xl font-bold mb-6 text-adega-text">Dashboard de Vendas</h2>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mb-8">
-        <div className="bg-white p-4 md:p-6 rounded shadow-sm border-l-4 border-blue-500 flex flex-col justify-center">
-          <p className="text-gray-500 text-xs md:text-sm font-bold uppercase">Faturamento (Vendas)</p>
-          <p className="text-2xl md:text-3xl font-bold text-blue-600">R$ {totalVendido.toFixed(2)}</p>
+        <div className="bg-adega-card border border-adega-border p-4 md:p-6 rounded-3xl shadow-sm border-l-4 border-blue-500 flex flex-col justify-center">
+          <p className="text-adega-muted text-xs md:text-sm font-bold uppercase">Faturamento (Vendas)</p>
+          <p className="text-2xl md:text-3xl font-bold text-blue-600 dark:text-blue-400">R$ {totalVendido.toFixed(2)}</p>
         </div>
-        <div className="bg-white p-4 md:p-6 rounded shadow-sm border-l-4 border-emerald-500 flex flex-col justify-center">
-          <p className="text-gray-500 text-xs md:text-sm font-bold uppercase">Lucro Líquido</p>
-          <p className="text-2xl md:text-3xl font-bold text-emerald-600">R$ {lucroTotal.toFixed(2)}</p>
+        <div className="bg-adega-card border border-adega-border p-4 md:p-6 rounded-3xl shadow-sm border-l-4 border-emerald-500 flex flex-col justify-center">
+          <p className="text-adega-muted text-xs md:text-sm font-bold uppercase">Lucro Líquido</p>
+          <p className="text-2xl md:text-3xl font-bold text-emerald-600 dark:text-emerald-400">R$ {lucroTotal.toFixed(2)}</p>
         </div>
       </div>
 
-      <div className="bg-white p-4 rounded shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border mb-6">
+      <div className="bg-adega-card border border-adega-border p-4 rounded-2xl shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6">
         <div className="flex flex-wrap gap-2 md:gap-4 w-full md:w-auto">
           {['diario', 'semanal', 'mensal'].map((f) => (
             <button
               key={f}
               onClick={() => { setFiltro(f as 'diario' | 'semanal' | 'mensal'); setDetalhesSelecionados(null); }}
-              className={`flex-1 md:flex-none px-4 py-2 rounded font-bold capitalize transition text-sm md:text-base ${filtro === f ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+              className={`flex-1 md:flex-none px-4 py-2 rounded-xl font-bold capitalize transition text-sm md:text-base ${filtro === f ? 'bg-adega-primary text-white' : 'bg-adega-bg text-adega-muted hover:bg-adega-border/50'}`}
             >
               {f}
             </button>
@@ -120,11 +120,11 @@ export function Dashboard() {
         {/* Seletor dinâmico de mês exclusivo para o filtro mensal */}
         {filtro === 'mensal' && (
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full md:w-auto mt-2 md:mt-0">
-            <label className="text-sm font-bold text-gray-600">Analisar o Mês de:</label>
+            <label className="text-sm font-bold text-adega-muted">Analisar o Mês de:</label>
             <select 
               value={mesSelecionado} 
               onChange={(e) => { setMesSelecionado(Number(e.target.value)); setDetalhesSelecionados(null); }}
-              className="border p-2 rounded font-medium bg-white outline-none focus:border-gray-800 w-full sm:w-auto"
+              className="border border-adega-border p-2 rounded-xl font-medium bg-adega-bg text-adega-text outline-none focus:border-adega-text w-full sm:w-auto"
             >
               {mesesAno.map((m, idx) => (
                 <option key={idx} value={idx}>{m}</option>
@@ -134,8 +134,8 @@ export function Dashboard() {
         )}
       </div>
 
-      <div className="bg-white p-4 md:p-6 rounded shadow-sm border mb-8 overflow-x-auto">
-        <h3 className="font-bold text-gray-700 mb-8 capitalize">
+      <div className="bg-adega-card border border-adega-border p-4 md:p-6 rounded-3xl shadow-sm mb-8 overflow-x-auto">
+        <h3 className="font-bold text-adega-text mb-8 capitalize">
           Visualização {filtro === 'mensal' ? `${filtro} (${mesesAno[mesSelecionado]})` : filtro}
         </h3>
         
@@ -144,19 +144,19 @@ export function Dashboard() {
             const alturaPercentual = (d.valor / maxBarValue) * 100;
             return (
               <div key={index} onClick={() => setDetalhesSelecionados(d)} className="relative group flex-1 flex flex-col justify-end h-full cursor-pointer">
-                <div className="opacity-0 group-hover:opacity-100 absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 bg-gray-800 text-white text-xs rounded p-2 pointer-events-none transition-opacity z-10 w-max text-center shadow-lg">
+                <div className="opacity-0 group-hover:opacity-100 absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 bg-adega-card border border-adega-border text-adega-text text-xs rounded-xl p-2 pointer-events-none transition-opacity z-10 w-max text-center shadow-lg">
                   <p className="font-bold mb-1">{d.label}</p>
                   <p>Vendido: R$ {d.valor.toFixed(2)}</p>
-                  <p className="text-emerald-400 font-bold">Lucro: R$ {d.lucro.toFixed(2)}</p>
-                  <p className="text-gray-400 mt-1 text-[10px] italic">Clique para ver os {d.itens.length} itens</p>
+                  <p className="text-emerald-500 dark:text-emerald-400 font-bold">Lucro: R$ {d.lucro.toFixed(2)}</p>
+                  <p className="text-adega-muted mt-1 text-[10px] italic">Clique para ver os {d.itens.length} itens</p>
                 </div>
 
-                <div style={{ height: `${alturaPercentual}%`, minHeight: d.valor > 0 ? '4px' : '0' }} className="w-full bg-blue-500 hover:bg-blue-400 rounded-t transition-all duration-300 relative">
+                <div style={{ height: `${alturaPercentual}%`, minHeight: d.valor > 0 ? '4px' : '0' }} className="w-full bg-blue-600 hover:bg-blue-500 rounded-t transition-all duration-300 relative">
                   {d.valor > 0 && (
                     <div style={{ height: `${(d.lucro / d.valor) * 100}%` }} className="absolute bottom-0 left-0 w-full bg-emerald-500 rounded-t" />
                   )}
                 </div>
-                <span className="text-[10px] md:text-xs text-center mt-2 text-gray-500 font-medium whitespace-nowrap overflow-hidden text-ellipsis">{d.label}</span>
+                <span className="text-[10px] md:text-xs text-center mt-2 text-adega-muted font-medium whitespace-nowrap overflow-hidden text-ellipsis">{d.label}</span>
               </div>
             );
           })}
@@ -164,33 +164,33 @@ export function Dashboard() {
       </div>
 
       {detalhesSelecionados && (
-        <div className="bg-white p-4 md:p-6 rounded shadow-sm border">
+        <div className="bg-adega-card border border-adega-border p-4 md:p-6 rounded-3xl shadow-sm">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2">
-            <h3 className="font-bold text-lg text-gray-800">Produtos vendidos: {detalhesSelecionados.label}</h3>
-            <button onClick={() => setDetalhesSelecionados(null)} className="text-gray-400 hover:text-red-500 font-bold text-sm">FECHAR ✕</button>
+            <h3 className="font-bold text-lg text-adega-text">Produtos vendidos: {detalhesSelecionados.label}</h3>
+            <button onClick={() => setDetalhesSelecionados(null)} className="text-adega-muted hover:text-red-500 font-bold text-sm transition">FECHAR ✕</button>
           </div>
           {detalhesSelecionados.itens.length === 0 ? (
-            <p className="text-gray-500 italic">Nenhuma venda registrada neste período.</p>
+            <p className="text-adega-muted italic">Nenhuma venda registrada neste período.</p>
           ) : (
             <div className="overflow-x-auto w-full">
               <table className="w-full min-w-[500px] text-left border-collapse">
                 <thead>
-                  <tr className="bg-gray-50 text-gray-600 text-sm border-b">
+                  <tr className="bg-adega-bg text-adega-muted text-sm border-b border-adega-border">
                     <th className="p-3">Horário</th>
                     <th className="p-3">Produto</th>
                     <th className="p-3">Custo</th>
                     <th className="p-3">Vendido Por</th>
-                    <th className="p-3 text-emerald-600">Lucro</th>
+                    <th className="p-3 text-emerald-600 dark:text-emerald-400">Lucro</th>
                   </tr>
                 </thead>
                 <tbody>
                   {detalhesSelecionados.itens.map((item, i) => (
-                    <tr key={i} className="border-b hover:bg-gray-50 text-sm">
-                      <td className="p-3 text-gray-500">{new Date(item.dataHoraISO).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</td>
-                      <td className="p-3 font-medium text-gray-800">{item.nome}</td>
+                    <tr key={i} className="border-b border-adega-border hover:bg-adega-bg/50 text-sm transition-colors">
+                      <td className="p-3 text-adega-muted">{new Date(item.dataHoraISO).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</td>
+                      <td className="p-3 font-medium text-adega-text">{item.nome}</td>
                       <td className="p-3 text-red-500">R$ {Number(item.custo || 0).toFixed(2)}</td>
-                      <td className="p-3 font-bold text-gray-700">R$ {Number(item.preco || 0).toFixed(2)}</td>
-                      <td className="p-3 font-bold text-emerald-600">R$ {Number(item.lucro || 0).toFixed(2)}</td>
+                      <td className="p-3 font-bold text-adega-text">R$ {Number(item.preco || 0).toFixed(2)}</td>
+                      <td className="p-3 font-bold text-emerald-600 dark:text-emerald-400">R$ {Number(item.lucro || 0).toFixed(2)}</td>
                     </tr>
                   ))}
                 </tbody>
