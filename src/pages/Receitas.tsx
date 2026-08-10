@@ -1,18 +1,17 @@
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { gerarId } from '../utils/id';
-import type { Ingrediente, Receita } from '../types';
+import type { Ingrediente } from '../types';
 
 export function Receitas() {
-  const { produtos, receitas, setReceitas, adicionarNotificacao } = useApp();
+  const { produtos, receitas, adicionarNotificacao, criarReceita, excluirReceita } = useApp();
   const [ingredientes, setIngredientes] = useState<Ingrediente[]>([]);
+  const [salvando, setSalvando] = useState(false);
 
-  // Estado dos campos do "adicionar ingrediente", agora sem tocar no DOM diretamente
   const [produtoSelecionadoId, setProdutoSelecionadoId] = useState('');
   const [tipoSelecionado, setTipoSelecionado] = useState<'ML' | 'Unidade'>('ML');
   const [qtdIngrediente, setQtdIngrediente] = useState('');
 
-  const salvar = (e: React.FormEvent<HTMLFormElement>) => {
+  const salvar = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const f = e.currentTarget;
     if (ingredientes.length === 0) {
@@ -23,12 +22,16 @@ export function Receitas() {
     const nome = (f.elements.namedItem('nome') as HTMLInputElement).value.trim();
     const preco = Number((f.elements.namedItem('preco') as HTMLInputElement).value);
 
-    const novaReceita: Receita = { id: gerarId(), nome, preco, ingredientes };
-    setReceitas([...receitas, novaReceita]);
-    f.reset();
-    setIngredientes([]);
-    setProdutoSelecionadoId('');
-    setQtdIngrediente('');
+    setSalvando(true);
+    const sucesso = await criarReceita({ nome, preco, ingredientes });
+    setSalvando(false);
+
+    if (sucesso) {
+      f.reset();
+      setIngredientes([]);
+      setProdutoSelecionadoId('');
+      setQtdIngrediente('');
+    }
   };
 
   const adicionarIngrediente = () => {
@@ -50,6 +53,11 @@ export function Receitas() {
     setQtdIngrediente('');
   };
 
+  const handleExcluir = async (id: string, nome: string) => {
+    if (!confirm(`Tem certeza que deseja excluir a receita "${nome}"?`)) return;
+    await excluirReceita(id);
+  };
+
   return (
     <div className="p-8 bg-adega-bg text-adega-text min-h-full transition-colors">
       <h2 className="text-2xl font-bold mb-6 text-adega-text">Cadastrar Receitas</h2>
@@ -60,7 +68,7 @@ export function Receitas() {
         </div>
         <div>
           <label className="block text-xs font-semibold text-adega-muted mb-1">Preço de Venda</label>
-          <input name="preco" type="number" step="0.01" placeholder="Ex: 20.00" className="border border-adega-border p-3 w-full rounded-xl bg-adega-bg text-adega-text placeholder-adega-muted focus:outline-none focus:ring-2 focus:ring-emerald-500" required />
+          <input name="preco" type="number" step="0.01" min="0" placeholder="Ex: 20.00" className="border border-adega-border p-3 w-full rounded-xl bg-adega-bg text-adega-text placeholder-adega-muted focus:outline-none focus:ring-2 focus:ring-emerald-500" required />
         </div>
 
         <div className="pt-2">
@@ -86,6 +94,7 @@ export function Receitas() {
               value={qtdIngrediente}
               onChange={(e) => setQtdIngrediente(e.target.value)}
               type="number"
+              min="0"
               placeholder="Qtd"
               className="border border-adega-border p-3 rounded-xl bg-adega-bg text-adega-text placeholder-adega-muted outline-none focus:ring-2 focus:ring-emerald-500 w-full sm:w-28"
             />
@@ -103,7 +112,9 @@ export function Receitas() {
           ))}
         </ul>
 
-        <button type="submit" className="bg-emerald-600 text-white w-full py-3.5 font-bold rounded-xl hover:bg-emerald-700 transition shadow-md shadow-emerald-600/20">Salvar Receita Completa</button>
+        <button type="submit" disabled={salvando} className="bg-emerald-600 text-white w-full py-3.5 font-bold rounded-xl hover:bg-emerald-700 transition shadow-md shadow-emerald-600/20 disabled:opacity-50">
+          {salvando ? 'Salvando...' : 'Salvar Receita Completa'}
+        </button>
       </form>
 
       <h2 className="text-xl font-bold mb-4 text-adega-text">Receitas Cadastradas</h2>
@@ -120,7 +131,7 @@ export function Receitas() {
                 <p className="text-xs text-emerald-500 font-semibold mt-0.5">R$ {Number(r.preco || 0).toFixed(2)}</p>
                 <p className="text-xs text-adega-muted mt-1">Ingredientes: {r.ingredientes.map((ing) => `${ing.nome} (${ing.qtd}${ing.tipo})`).join(', ')}</p>
               </div>
-              <button onClick={() => setReceitas(receitas.filter((x) => x.id !== r.id))} className="bg-red-600 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-red-700 transition shadow-sm">Excluir</button>
+              <button onClick={() => handleExcluir(r.id, r.nome)} className="bg-red-600 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-red-700 transition shadow-sm">Excluir</button>
             </div>
           ))
         )}

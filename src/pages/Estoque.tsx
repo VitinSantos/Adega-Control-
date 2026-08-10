@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { gerarId } from '../utils/id';
 import type { Produto } from '../types';
 
 export function Estoque() {
-  const { produtos, setProdutos, notificacoes, setNotificacoes, adicionarNotificacao, nomeProdutoExiste } = useApp();
+  const { produtos, notificacoes, setNotificacoes, adicionarNotificacao, nomeProdutoExiste, criarProduto, atualizarProduto, excluirProduto } = useApp();
   const [editando, setEditando] = useState<Produto | null>(null);
+  const [salvando, setSalvando] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const f = e.currentTarget;
     const nome = (f.elements.namedItem('nome') as HTMLInputElement).value.trim();
@@ -24,8 +24,7 @@ export function Estoque() {
       return;
     }
 
-    const dados: Produto = {
-      id: editando ? editando.id : gerarId(),
+    const dados = {
       nome,
       qtd: Number((f.elements.namedItem('qtd') as HTMLInputElement).value),
       preco: Number((f.elements.namedItem('preco') as HTMLInputElement).value),
@@ -34,13 +33,21 @@ export function Estoque() {
       alertaMinimo: Number((f.elements.namedItem('alerta') as HTMLInputElement).value),
     };
 
-    if (editando) {
-      setProdutos(produtos.map(p => (p.id === editando.id ? dados : p)));
+    setSalvando(true);
+    const sucesso = editando
+      ? await atualizarProduto({ ...dados, id: editando.id })
+      : await criarProduto(dados);
+    setSalvando(false);
+
+    if (sucesso) {
       setEditando(null);
-    } else {
-      setProdutos([...produtos, dados]);
+      f.reset();
     }
-    f.reset();
+  };
+
+  const handleExcluir = async (id: string, nome: string) => {
+    if (!confirm(`Tem certeza que deseja excluir "${nome}"? Essa ação não pode ser desfeita.`)) return;
+    await excluirProduto(id);
   };
 
   return (
@@ -72,27 +79,27 @@ export function Estoque() {
 
         <div className="flex flex-col gap-1">
           <label className="text-xs font-semibold text-adega-muted">Qtd em Estoque</label>
-          <input name="qtd" type="number" step="0.01" defaultValue={editando?.qtd} placeholder="Ex: 5" className="border border-adega-border p-3 rounded-xl bg-adega-bg text-adega-text placeholder-adega-muted focus:outline-none focus:ring-2 focus:ring-emerald-500" required />
+          <input name="qtd" type="number" step="0.01" min="0" defaultValue={editando?.qtd} placeholder="Ex: 5" className="border border-adega-border p-3 rounded-xl bg-adega-bg text-adega-text placeholder-adega-muted focus:outline-none focus:ring-2 focus:ring-emerald-500" required />
         </div>
 
         <div className="flex flex-col gap-1">
           <label className="text-xs font-semibold text-adega-muted">Preço de Compra (Custo)</label>
-          <input name="custo" type="number" step="0.01" defaultValue={editando?.precoCusto} placeholder="Ex: 80.00" className="border border-red-300 dark:border-red-900 p-3 rounded-xl bg-adega-bg text-adega-text placeholder-adega-muted focus:outline-none focus:ring-2 focus:ring-red-500" required />
+          <input name="custo" type="number" step="0.01" min="0" defaultValue={editando?.precoCusto} placeholder="Ex: 80.00" className="border border-red-300 dark:border-red-900 p-3 rounded-xl bg-adega-bg text-adega-text placeholder-adega-muted focus:outline-none focus:ring-2 focus:ring-red-500" required />
         </div>
 
         <div className="flex flex-col gap-1">
           <label className="text-xs font-semibold text-adega-muted">Preço de Venda</label>
-          <input name="preco" type="number" step="0.01" defaultValue={editando?.preco} placeholder="Ex: 150.00" className="border border-emerald-300 dark:border-emerald-900 p-3 rounded-xl bg-adega-bg text-adega-text placeholder-adega-muted focus:outline-none focus:ring-2 focus:ring-emerald-500" required />
+          <input name="preco" type="number" step="0.01" min="0" defaultValue={editando?.preco} placeholder="Ex: 150.00" className="border border-emerald-300 dark:border-emerald-900 p-3 rounded-xl bg-adega-bg text-adega-text placeholder-adega-muted focus:outline-none focus:ring-2 focus:ring-emerald-500" required />
         </div>
 
         <div className="flex flex-col gap-1">
           <label className="text-xs font-semibold text-adega-muted">Alerta Mínimo (Un)</label>
-          <input name="alerta" type="number" defaultValue={editando?.alertaMinimo} placeholder="Ex: 5" className="border border-adega-border p-3 rounded-xl bg-adega-bg text-adega-text placeholder-adega-muted focus:outline-none focus:ring-2 focus:ring-emerald-500" required />
+          <input name="alerta" type="number" min="0" defaultValue={editando?.alertaMinimo} placeholder="Ex: 5" className="border border-adega-border p-3 rounded-xl bg-adega-bg text-adega-text placeholder-adega-muted focus:outline-none focus:ring-2 focus:ring-emerald-500" required />
         </div>
 
         <div className="col-span-2 md:col-span-3 flex gap-2 pt-2">
-          <button className="flex-1 bg-emerald-600 text-white py-3 font-bold rounded-xl hover:bg-emerald-700 transition shadow-md shadow-emerald-600/20">
-            {editando ? 'Salvar Edição' : 'Adicionar ao Estoque'}
+          <button disabled={salvando} className="flex-1 bg-emerald-600 text-white py-3 font-bold rounded-xl hover:bg-emerald-700 transition shadow-md shadow-emerald-600/20 disabled:opacity-50">
+            {salvando ? 'Salvando...' : editando ? 'Salvar Edição' : 'Adicionar ao Estoque'}
           </button>
           {editando && (
             <button
@@ -138,7 +145,7 @@ export function Estoque() {
                   <td className="p-4 text-emerald-600 dark:text-emerald-400 font-bold">R$ {p.preco.toFixed(2)}</td>
                   <td className="p-4 flex gap-2 justify-center">
                     <button onClick={() => setEditando(p)} className="bg-blue-600 text-white px-3 py-1.5 rounded-xl hover:bg-blue-700 transition text-xs font-bold">Editar</button>
-                    <button onClick={() => setProdutos(produtos.filter((x) => x.id !== p.id))} className="bg-red-600 text-white px-3 py-1.5 rounded-xl hover:bg-red-700 transition text-xs font-bold">Excluir</button>
+                    <button onClick={() => handleExcluir(p.id, p.nome)} className="bg-red-600 text-white px-3 py-1.5 rounded-xl hover:bg-red-700 transition text-xs font-bold">Excluir</button>
                   </td>
                 </tr>
               );
