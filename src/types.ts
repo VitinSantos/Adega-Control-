@@ -11,7 +11,6 @@ export interface Notificacao { id: string; mensagem: string; tipo: TipoNotificac
 export interface SessaoTenant { id: string; email?: string; nome?: string; tenantId: string; cargo?: string; }
 
 export function tenantIdDoUsuario(user: { user_metadata?: Record<string, unknown>; app_metadata?: Record<string, unknown> } | null): string | null {
-  const metadata = user?.app_metadata ?? user?.user_metadata;
-  const tenantId = metadata?.tenant_id;
+  const tenantId = user?.app_metadata?.tenant_id ?? user?.user_metadata?.tenant_id;
   return typeof tenantId === 'string' && tenantId.length > 0 ? tenantId : null;
 }
