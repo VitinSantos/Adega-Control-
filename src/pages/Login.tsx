@@ -1,19 +1,20 @@
 import React, { useState } from 'react';
 import { Wine, ShieldCheck, ShoppingBag, BarChart2, Moon, Sun } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
+import { useApp } from '../context/AppContext';
 
-interface LoginProps {
-  onLoginSuccess: () => void;
-}
-
-export function Login({ onLoginSuccess }: LoginProps) {
+export function Login() {
   const { theme, toggleTheme } = useTheme();
+  const { entrar, carregando } = useApp();
+  const [erro, setErro] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onLoginSuccess();
+    setErro('');
+    const sucesso = await entrar(email, password);
+    if (!sucesso) setErro('Não foi possível entrar. Verifique suas credenciais e o tenant associado.');
   };
 
   return (
@@ -81,6 +82,7 @@ export function Login({ onLoginSuccess }: LoginProps) {
             </p>
           </div>
 
+          {erro && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-xs font-medium text-red-700">{erro}</p>}
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
               <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
@@ -112,7 +114,8 @@ export function Login({ onLoginSuccess }: LoginProps) {
 
             <button
               type="submit"
-              className="w-full py-3.5 bg-emerald-600 text-white font-semibold text-sm rounded-xl hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition shadow-md shadow-emerald-600/20"
+              disabled={carregando}
+              className="w-full py-3.5 bg-emerald-600 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold text-sm rounded-xl hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition shadow-md shadow-emerald-600/20"
             >
               Entrar no Sistema
             </button>

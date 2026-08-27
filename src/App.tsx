@@ -11,15 +11,14 @@ import { Relatorios } from './pages/Relatorios';
 import { useApp } from './context/AppContext';
 
 export default function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
   const [paginaAtual, setPaginaAtual] = useState<string>('dashboard');
   const [menuAberto, setMenuAberto] = useState<boolean>(false);
-  const { carregando, erroConexao } = useApp();
+  const { carregando, erroConexao, sessao, sair } = useApp();
 
-  if (!isLoggedIn) {
+  if (!sessao) {
     return (
       <ThemeProvider>
-        <Login onLoginSuccess={() => setIsLoggedIn(true)} />
+        <Login />
       </ThemeProvider>
     );
   }
@@ -66,7 +65,7 @@ export default function App() {
               setPaginaAtual(pagina);
               setMenuAberto(false);
             }}
-            onLogout={() => setIsLoggedIn(false)}
+            onLogout={() => { void sair(); }}
           />
         </div>
 

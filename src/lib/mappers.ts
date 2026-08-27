@@ -1,91 +1,11 @@
-import type { Produto, Receita, Venda } from '../types';
+import type { Produto, Receita, Venda, Ingrediente } from '../types';
 
-interface ProdutoRow {
-  id: string;
-  nome: string;
-  qtd: number | string;
-  preco: number | string;
-  preco_custo: number | string;
-  ml_por_garrafa: number | string;
-  alerta_minimo: number | string;
-}
+type Row = Record<string, unknown>;
+const num = (value: unknown) => Number(value ?? 0);
 
-interface ReceitaRow {
-  id: string;
-  nome: string;
-  preco: number | string;
-  ingredientes: Receita['ingredientes'] | null;
-}
-
-interface VendaRow {
-  id: string;
-  nome: string;
-  preco: number | string;
-  custo: number | string;
-  lucro: number | string;
-  data: string;
-  data_hora_iso: string;
-}
-
-export function produtoDoBanco(row: ProdutoRow): Produto {
-  return {
-    id: row.id,
-    nome: row.nome,
-    qtd: Number(row.qtd),
-    preco: Number(row.preco),
-    precoCusto: Number(row.preco_custo),
-    mlPorGarrafa: Number(row.ml_por_garrafa),
-    alertaMinimo: Number(row.alerta_minimo),
-  };
-}
-
-export function produtoParaBanco(p: Omit<Produto, 'id'> | Produto) {
-  return {
-    nome: p.nome,
-    qtd: p.qtd,
-    preco: p.preco,
-    preco_custo: p.precoCusto,
-    ml_por_garrafa: p.mlPorGarrafa,
-    alerta_minimo: p.alertaMinimo,
-  };
-}
-
-export function receitaDoBanco(row: ReceitaRow): Receita {
-  return {
-    id: row.id,
-    nome: row.nome,
-    preco: Number(row.preco),
-    ingredientes: row.ingredientes ?? [],
-  };
-}
-
-export function receitaParaBanco(r: Omit<Receita, 'id'> | Receita) {
-  return {
-    nome: r.nome,
-    preco: r.preco,
-    ingredientes: r.ingredientes,
-  };
-}
-
-export function vendaDoBanco(row: VendaRow): Venda {
-  return {
-    id: row.id,
-    nome: row.nome,
-    preco: Number(row.preco),
-    custo: Number(row.custo),
-    lucro: Number(row.lucro),
-    data: row.data,
-    dataHoraISO: row.data_hora_iso,
-  };
-}
-
-export function vendaParaBanco(v: Omit<Venda, 'id'>) {
-  return {
-    nome: v.nome,
-    preco: v.preco,
-    custo: v.custo,
-    lucro: v.lucro,
-    data: v.data,
-    data_hora_iso: v.dataHoraISO,
-  };
-}
+export function produtoDoBanco(row: Row): Produto { return { id: String(row.id), nome: String(row.nome), qtd: num(row.qtd), preco: num(row.preco_venda), precoCusto: num(row.preco_custo), mlPorGarrafa: num(row.ml_por_garrafa), alertaMinimo: 0 }; }
+export function produtoParaBanco(p: Omit<Produto, 'id'> | Produto) { return { nome: p.nome, qtd: p.qtd, preco_custo: p.precoCusto, preco_venda: p.preco, ml_por_garrafa: p.mlPorGarrafa }; }
+export function ingredienteDoBanco(row: Row, produto?: Produto): Ingrediente { return { produtoId: String(row.produto_id), nome: produto?.nome ?? String(row.nome ?? ''), tipo: row.tipo as 'ML' | 'Unidade', qtd: num(row.qtd) }; }
+export function receitaDoBanco(row: Row, ingredientes: Ingrediente[] = []): Receita { return { id: String(row.id), nome: String(row.nome), preco: num(row.preco_venda), ingredientes }; }
+export function receitaParaBanco(r: Omit<Receita, 'id'> | Receita) { return { nome: r.nome, preco_venda: r.preco }; }
+export function vendaDoBanco(row: Row): Venda { return { id: String(row.id), nome: String(row.nome_snapshot ?? row.nome), preco: num(row.total_venda ?? row.preco), custo: num(row.custo_total ?? row.custo), lucro: num(row.lucro_total ?? row.lucro), data: String(row.data_hora ?? row.data ?? ''), dataHoraISO: String(row.data_hora ?? row.data_hora_iso ?? '') }; }
