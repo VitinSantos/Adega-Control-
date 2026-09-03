@@ -7,7 +7,7 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   // loadEnv lê arquivos .env, enquanto as variáveis do projeto Vercel
   // chegam em process.env durante o build/preview.
-  const runtimeEnv = { ...process.env, ...env }
+  const runtimeEnv = { ...env, ...process.env }
   const supabaseUrl =
     runtimeEnv.VITE_SUPABASE_URL ||
     runtimeEnv.NEXT_PUBLIC_SUPABASE_URL ||
@@ -15,6 +15,8 @@ export default defineConfig(({ mode }) => {
   const supabaseKey =
     runtimeEnv.VITE_SUPABASE_PUBLISHABLE_KEY ||
     runtimeEnv.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+    runtimeEnv.VITE_SUPABASE_ANON_KEY ||
+    runtimeEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
     runtimeEnv.SUPABASE_PUBLISHABLE_KEY ||
     runtimeEnv.SUPABASE_ANON_KEY
 
