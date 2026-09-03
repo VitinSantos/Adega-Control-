@@ -5,12 +5,18 @@ import react from '@vitejs/plugin-react'
 // dependendo do ambiente. Expomos ambas as convenções ao bundle do Vite.
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
-  const supabaseUrl = env.VITE_SUPABASE_URL || env.NEXT_PUBLIC_SUPABASE_URL || env.SUPABASE_URL
+  // loadEnv lê arquivos .env, enquanto as variáveis do projeto Vercel
+  // chegam em process.env durante o build/preview.
+  const runtimeEnv = { ...process.env, ...env }
+  const supabaseUrl =
+    runtimeEnv.VITE_SUPABASE_URL ||
+    runtimeEnv.NEXT_PUBLIC_SUPABASE_URL ||
+    runtimeEnv.SUPABASE_URL
   const supabaseKey =
-    env.VITE_SUPABASE_PUBLISHABLE_KEY ||
-    env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
-    env.SUPABASE_PUBLISHABLE_KEY ||
-    env.SUPABASE_ANON_KEY
+    runtimeEnv.VITE_SUPABASE_PUBLISHABLE_KEY ||
+    runtimeEnv.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+    runtimeEnv.SUPABASE_PUBLISHABLE_KEY ||
+    runtimeEnv.SUPABASE_ANON_KEY
 
   return {
     plugins: [react()],
