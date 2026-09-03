@@ -16,11 +16,16 @@ const envNames = [
 export default defineConfig(({ mode }) => {
   // loadEnv também lê os arquivos .env do projeto. O fallback em
   // process.env cobre as variáveis injetadas pelo ambiente do preview.
-  const fileEnv = loadEnv(mode, process.cwd(), '')
+  // O preview pode executar o Vite em modo `production`, enquanto as
+  // variáveis gerenciadas pelo v0 ficam no arquivo de desenvolvimento.
+  // Mesclar os dois modos evita que o cliente seja compilado com valores vazios.
+  const modeEnv = loadEnv(mode, process.cwd(), '')
+  const developmentEnv = mode === 'development' ? {} : loadEnv('development', process.cwd(), '')
+  const fileEnv = { ...developmentEnv, ...modeEnv }
   const defineEnv = Object.fromEntries(
     envNames.map((name) => [
       `import.meta.env.${name}`,
-      JSON.stringify(fileEnv[name] ?? process.env[name] ?? ''),
+      JSON.stringify(fileEnv[name] || process.env[name] || ''),
     ]),
   )
 
