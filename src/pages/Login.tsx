@@ -13,11 +13,39 @@ export function Login({ onLoginSuccess }: LoginProps) {
   const [password, setPassword] = useState('');
   const [erro, setErro] = useState<string | null>(null);
   const [entrando, setEntrando] = useState(false);
+  const [modoCadastro, setModoCadastro] = useState(false);
+  const [nome, setNome] = useState('');
+  const [mensagem, setMensagem] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErro(null);
+    setMensagem(null);
     setEntrando(true);
+
+    if (modoCadastro) {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: import.meta.env.VITE_SUPABASE_REDIRECT_URL || import.meta.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL || `${window.location.origin}/auth/callback`,
+          data: { nome },
+        },
+      });
+      setEntrando(false);
+      if (error) {
+        setErro('Não foi possível criar a conta. Verifique os dados e tente novamente.');
+        return;
+      }
+      if (data.session) {
+        onLoginSuccess();
+      } else {
+        setMensagem('Conta criada. Confirme seu e-mail antes de entrar.');
+        setModoCadastro(false);
+      }
+      return;
+    }
+
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setEntrando(false);
     if (error) {
@@ -94,6 +122,22 @@ export function Login({ onLoginSuccess }: LoginProps) {
 
           <form onSubmit={handleSubmit} className="space-y-5">
             {erro && <p className="text-sm text-red-600 dark:text-red-400" role="alert">{erro}</p>}
+            {mensagem && <p className="text-sm text-emerald-600 dark:text-emerald-400" role="status">{mensagem}</p>}
+            {modoCadastro && (
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                  Nome
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={nome}
+                  onChange={(e) => setNome(e.target.value)}
+                  placeholder="Seu nome"
+                  className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white dark:focus:bg-gray-700 transition"
+                />
+              </div>
+            )}
             <div>
               <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
                 E-mail
@@ -127,9 +171,21 @@ export function Login({ onLoginSuccess }: LoginProps) {
               className="w-full py-3.5 bg-emerald-600 text-white font-semibold text-sm rounded-xl hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition shadow-md shadow-emerald-600/20"
             disabled={entrando}
             >
-              {entrando ? 'Entrando...' : 'Entrar no Sistema'}
+              {entrando ? (modoCadastro ? 'Criando conta...' : 'Entrando...') : (modoCadastro ? 'Criar minha conta' : 'Entrar no Sistema')}
             </button>
           </form>
+
+          <button
+            type="button"
+            onClick={() => {
+              setModoCadastro((atual) => !atual);
+              setErro(null);
+              setMensagem(null);
+            }}
+            className="w-full text-sm font-semibold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300"
+          >
+            {modoCadastro ? 'Já tenho uma conta' : 'Ainda não tenho uma conta'}
+          </button>
 
           <div className="pt-4 border-t border-gray-100 dark:border-gray-700 text-center">
             <p className="text-[11px] text-gray-400 dark:text-gray-500">
