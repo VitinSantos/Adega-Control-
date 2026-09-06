@@ -1,0 +1,13 @@
+node_modules 
+dist 
+dist-ssr 
+*.local 
+ 
+# Variaveis de ambiente -- nunca deve ir para o GitHub 
+.env 
+.env.* 
+!.env.example 
+ 
+.vscode/* 
+.idea 
+.DS_Store
