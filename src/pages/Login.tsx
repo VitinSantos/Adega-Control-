@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Wine, ShieldCheck, ShoppingBag, BarChart2, Moon, Sun } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
+import { supabase } from '../lib/supabaseClient';
 
 interface LoginProps {
   onLoginSuccess: () => void;
@@ -10,9 +11,19 @@ export function Login({ onLoginSuccess }: LoginProps) {
   const { theme, toggleTheme } = useTheme();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [erro, setErro] = useState<string | null>(null);
+  const [entrando, setEntrando] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErro(null);
+    setEntrando(true);
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    setEntrando(false);
+    if (error) {
+      setErro('E-mail ou senha inválidos.');
+      return;
+    }
     onLoginSuccess();
   };
 
@@ -82,6 +93,7 @@ export function Login({ onLoginSuccess }: LoginProps) {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
+            {erro && <p className="text-sm text-red-600 dark:text-red-400" role="alert">{erro}</p>}
             <div>
               <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
                 E-mail
@@ -113,8 +125,9 @@ export function Login({ onLoginSuccess }: LoginProps) {
             <button
               type="submit"
               className="w-full py-3.5 bg-emerald-600 text-white font-semibold text-sm rounded-xl hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition shadow-md shadow-emerald-600/20"
+            disabled={entrando}
             >
-              Entrar no Sistema
+              {entrando ? 'Entrando...' : 'Entrar no Sistema'}
             </button>
           </form>
 

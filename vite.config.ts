@@ -1,7 +1,11 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-// https://vite.dev/config/
-export default defineConfig({
-  plugins: [react()],
+export default defineConfig(() => {
+  return {
+    plugins: [react()],
+    envPrefix: ['VITE_', 'NEXT_PUBLIC_', 'SUPABASE_'],
+    // Mantém as variáveis injetadas pelo Vite intactas; definir cada chave
+    // manualmente com string vazia sobrescreve o ambiente do preview.
+  }
 })
