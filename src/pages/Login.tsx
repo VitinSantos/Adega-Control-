@@ -25,16 +25,27 @@ export function Login({ onLoginSuccess }: LoginProps) {
 
     if (modoCadastro) {
       const { data, error } = await supabase.auth.signUp({
-        email,
+        email: email.trim().toLowerCase(),
         password,
         options: {
-          emailRedirectTo: import.meta.env.VITE_SUPABASE_REDIRECT_URL || import.meta.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL || `${window.location.origin}/auth/callback`,
-          data: { nome },
+          // O app é uma SPA Vite e não possui uma rota /auth/callback.
+          // Sem um redirect customizado, o Supabase usa a URL do site
+          // configurada no projeto e evita falhas por URL não autorizada.
+          data: { nome: nome.trim() },
         },
       });
       setEntrando(false);
       if (error) {
-        setErro('Não foi possível criar a conta. Verifique os dados e tente novamente.');
+        const mensagemErro = error.message.toLowerCase();
+        if (mensagemErro.includes('already registered') || mensagemErro.includes('user already')) {
+          setErro('Este e-mail já possui uma conta. Use “Já tenho uma conta” para entrar.');
+        } else if (mensagemErro.includes('password')) {
+          setErro('A senha precisa ter pelo menos 6 caracteres.');
+        } else if (mensagemErro.includes('redirect')) {
+          setErro('O cadastro foi bloqueado pela configuração de redirecionamento do Supabase.');
+        } else {
+          setErro('Não foi possível criar a conta. Confirme o e-mail e a senha e tente novamente.');
+        }
         return;
       }
       if (data.session) {
