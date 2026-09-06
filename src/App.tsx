@@ -11,20 +11,29 @@ import { Relatorios } from './pages/Relatorios';
 import { useApp } from './context/AppContext';
 
 export default function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
   const [paginaAtual, setPaginaAtual] = useState<string>('dashboard');
   const [menuAberto, setMenuAberto] = useState<boolean>(false);
-  const { carregando, erroConexao } = useApp();
+  const { sessao, autenticando, perfil, carregando, erroConexao, sair } = useApp();
 
-  if (!isLoggedIn) {
+  if (autenticando) {
     return (
       <ThemeProvider>
-        <Login onLoginSuccess={() => setIsLoggedIn(true)} />
+        <div className="flex h-screen items-center justify-center bg-gray-50 dark:bg-gray-900 transition-colors">
+          <p className="text-gray-500 dark:text-gray-400 font-medium">Verificando sessão...</p>
+        </div>
       </ThemeProvider>
     );
   }
 
-  if (carregando) {
+  if (!sessao) {
+    return (
+      <ThemeProvider>
+        <Login />
+      </ThemeProvider>
+    );
+  }
+
+  if (!perfil || carregando) {
     return (
       <ThemeProvider>
         <div className="flex h-screen items-center justify-center bg-gray-50 dark:bg-gray-900 transition-colors">
@@ -38,10 +47,15 @@ export default function App() {
     return (
       <ThemeProvider>
         <div className="flex h-screen items-center justify-center bg-gray-50 dark:bg-gray-900 p-8 transition-colors">
-          <div className="max-w-md bg-white dark:bg-gray-800 border border-red-200 dark:border-red-900 rounded p-6 shadow-sm text-center">
-            <p className="text-red-600 dark:text-red-400 font-bold mb-2">Não foi possível conectar ao banco de dados</p>
+          <div className="max-w-md bg-white dark:bg-gray-800 border border-red-200 dark:border-red-900 rounded p-6 shadow-sm text-center space-y-4">
+            <p className="text-red-600 dark:text-red-400 font-bold">Não foi possível carregar o sistema</p>
             <p className="text-gray-500 dark:text-gray-400 text-sm">{erroConexao}</p>
-            <p className="text-gray-400 dark:text-gray-500 text-xs mt-4">Verifique sua conexão com a internet e as variáveis de ambiente do Supabase (.env).</p>
+            <button
+              onClick={() => sair()}
+              className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold hover:underline"
+            >
+              Sair e tentar novamente
+            </button>
           </div>
         </div>
       </ThemeProvider>
@@ -66,7 +80,7 @@ export default function App() {
               setPaginaAtual(pagina);
               setMenuAberto(false);
             }}
-            onLogout={() => setIsLoggedIn(false)}
+            onLogout={() => sair()}
           />
         </div>
 

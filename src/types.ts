@@ -41,3 +41,10 @@ export interface Notificacao {
   mensagem: string;
   tipo: TipoNotificacao;
 }
+
+export interface Perfil {
+  id: string;
+  nome: string;
+  role: 'admin' | 'colaborador';
+  lojaId: string | null;
+}

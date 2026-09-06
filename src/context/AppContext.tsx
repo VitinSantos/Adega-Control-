@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-import type { Produto, Venda, Receita, Notificacao, TipoNotificacao } from '../types';
+import type { Session } from '@supabase/supabase-js';
+import type { Produto, Venda, Receita, Notificacao, TipoNotificacao, Perfil } from '../types';
 import { supabase } from '../lib/supabaseClient';
 import {
   produtoDoBanco, produtoParaBanco,
@@ -8,6 +9,13 @@ import {
 } from '../lib/mappers';
 
 interface AppContextValue {
+  sessao: Session | null;
+  perfil: Perfil | null;
+  autenticando: boolean;
+  erroLogin: string | null;
+  entrar: (email: string, senha: string) => Promise<boolean>;
+  sair: () => Promise<void>;
+
   produtos: Produto[];
   receitas: Receita[];
   vendas: Venda[];
@@ -32,11 +40,16 @@ interface AppContextValue {
 const AppContext = createContext<AppContextValue | null>(null);
 
 export function AppProvider({ children }: { children: ReactNode }) {
+  const [sessao, setSessao] = useState<Session | null>(null);
+  const [perfil, setPerfil] = useState<Perfil | null>(null);
+  const [autenticando, setAutenticando] = useState(true);
+  const [erroLogin, setErroLogin] = useState<string | null>(null);
+
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [receitas, setReceitas] = useState<Receita[]>([]);
   const [vendas, setVendas] = useState<Venda[]>([]);
   const [notificacoes, setNotificacoes] = useState<Notificacao[]>([]);
-  const [carregando, setCarregando] = useState(true);
+  const [carregando, setCarregando] = useState(false);
   const [erroConexao, setErroConexao] = useState<string | null>(null);
 
   const adicionarNotificacao = (mensagem: string, tipo: TipoNotificacao = 'aviso') => {
@@ -48,7 +61,72 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setSessao(data.session);
+      setAutenticando(false);
+    });
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_evento, novaSessao) => {
+      setSessao(novaSessao);
+      if (!novaSessao) {
+        setPerfil(null);
+        setProdutos([]);
+        setReceitas([]);
+        setVendas([]);
+      }
+    });
+
+    return () => listener.subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    async function buscarPerfil() {
+      if (!sessao) return;
+
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, nome, role, loja_id')
+        .eq('id', sessao.user.id)
+        .single();
+
+      if (error || !data) {
+        setErroConexao(`Não foi possível carregar seu perfil: ${error?.message}`);
+        return;
+      }
+
+      if (!data.loja_id) {
+        setErroConexao('Sua conta ainda não está vinculada a nenhuma loja. Peça para um administrador configurar seu acesso.');
+        return;
+      }
+
+      setPerfil({ id: data.id, nome: data.nome, role: data.role, lojaId: data.loja_id });
+    }
+
+    buscarPerfil();
+  }, [sessao]);
+
+  const entrar = async (email: string, senha: string): Promise<boolean> => {
+    setErroLogin(null);
+    const { error } = await supabase.auth.signInWithPassword({ email, password: senha });
+    if (error) {
+      setErroLogin(
+        error.message === 'Invalid login credentials'
+          ? 'E-mail ou senha incorretos.'
+          : error.message
+      );
+      return false;
+    }
+    return true;
+  };
+
+  const sair = async () => {
+    await supabase.auth.signOut();
+  };
+
+  useEffect(() => {
     async function carregarTudo() {
+      if (!perfil) return;
+
       setCarregando(true);
       setErroConexao(null);
 
@@ -72,7 +150,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
 
     carregarTudo();
-  }, []);
+  }, [perfil]);
 
   const nomeProdutoExiste = (nome: string, ignorarId?: string) => {
     const alvo = nome.trim().toLowerCase();
@@ -201,6 +279,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   return (
     <AppContext.Provider value={{
+      sessao, perfil, autenticando, erroLogin, entrar, sair,
       produtos, receitas, vendas,
       carregando, erroConexao,
       notificacoes, setNotificacoes,

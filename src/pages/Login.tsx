@@ -1,36 +1,25 @@
 import React, { useState } from 'react';
 import { Wine, ShieldCheck, ShoppingBag, BarChart2, Moon, Sun } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
-import { supabase } from '../lib/supabaseClient';
+import { useApp } from '../context/AppContext';
 
-interface LoginProps {
-  onLoginSuccess: () => void;
-}
-
-export function Login({ onLoginSuccess }: LoginProps) {
+export function Login() {
   const { theme, toggleTheme } = useTheme();
+  const { entrar, erroLogin } = useApp();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [erro, setErro] = useState<string | null>(null);
   const [entrando, setEntrando] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setErro(null);
     setEntrando(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    await entrar(email, password);
     setEntrando(false);
-    if (error) {
-      setErro('E-mail ou senha inválidos.');
-      return;
-    }
-    onLoginSuccess();
   };
 
   return (
     <div className="min-h-screen flex bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-200 relative">
       
-      {/* Botão para mudar o tema na própria tela de login */}
       <button
         onClick={toggleTheme}
         className="absolute top-6 right-6 p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-sm text-gray-600 dark:text-gray-300 hover:text-emerald-600 dark:hover:text-emerald-400 transition z-20"
@@ -39,7 +28,6 @@ export function Login({ onLoginSuccess }: LoginProps) {
         {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
       </button>
 
-      {/* Lado Esquerdo - Apresentação Institucional */}
       <div className="hidden lg:flex lg:w-1/2 bg-emerald-900 dark:bg-emerald-950 text-white p-12 flex-col justify-between relative overflow-hidden">
         <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#10b981_1px,transparent_1px)] [background-size:16px_16px]"></div>
         
@@ -82,7 +70,6 @@ export function Login({ onLoginSuccess }: LoginProps) {
         </div>
       </div>
 
-      {/* Lado Direito - Formulário de Login */}
       <div className="w-full lg:w-1/2 flex items-center justify-center p-8">
         <div className="max-w-md w-full space-y-8 bg-white dark:bg-gray-800 p-8 sm:p-10 rounded-3xl shadow-xl border border-gray-100 dark:border-gray-700 transition-colors">
           <div className="text-center">
@@ -92,8 +79,13 @@ export function Login({ onLoginSuccess }: LoginProps) {
             </p>
           </div>
 
+          {erroLogin && (
+            <div className="bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 text-red-600 dark:text-red-400 text-sm rounded-xl px-4 py-3 text-center">
+              {erroLogin}
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-5">
-            {erro && <p className="text-sm text-red-600 dark:text-red-400" role="alert">{erro}</p>}
             <div>
               <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
                 E-mail
@@ -124,8 +116,8 @@ export function Login({ onLoginSuccess }: LoginProps) {
 
             <button
               type="submit"
-              className="w-full py-3.5 bg-emerald-600 text-white font-semibold text-sm rounded-xl hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition shadow-md shadow-emerald-600/20"
-            disabled={entrando}
+              disabled={entrando}
+              className="w-full py-3.5 bg-emerald-600 text-white font-semibold text-sm rounded-xl hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition shadow-md shadow-emerald-600/20 disabled:opacity-50"
             >
               {entrando ? 'Entrando...' : 'Entrar no Sistema'}
             </button>
