@@ -221,8 +221,9 @@ export function Sidebar({
     }
 
     /*
-     * Limite de segurança de 5 MB.
+     * Limite de 5 MB.
      */
+
     if (arquivo.size > 5 * 1024 * 1024) {
       alert(
         'A imagem precisa ter no máximo 5 MB.'
@@ -235,6 +236,7 @@ export function Sidebar({
     /*
      * Aceitamos somente imagens.
      */
+
     if (!arquivo.type.startsWith('image/')) {
       alert(
         'Selecione um arquivo de imagem válido.'
@@ -260,16 +262,14 @@ export function Sidebar({
       }
 
       /*
+       * =====================================================
+       * CAMINHO DA FOTO
+       * =====================================================
+       *
        * Cada usuário possui sua própria pasta.
        *
-       * Agora usamos um nome único para cada upload,
-       * evitando problemas com upsert/update no Storage.
-       *
-       * Exemplo:
-       *
-       * avatars/
-       *   user-id/
-       *     avatar-1725123456789.jpg
+       * Agora usamos um nome único para evitar
+       * problemas com UPDATE / UPSERT.
        */
 
       const extensao =
@@ -279,10 +279,9 @@ export function Sidebar({
         `${user.id}/avatar-${Date.now()}.${extensao}`;
 
       /*
-       * Upload da imagem.
-       *
-       * upsert: false
-       * garante que será feito apenas um INSERT.
+       * =====================================================
+       * UPLOAD PARA O SUPABASE STORAGE
+       * =====================================================
        */
 
       const {
@@ -297,7 +296,7 @@ export function Sidebar({
 
       if (uploadError) {
         console.error(
-          'Erro no upload do Storage:',
+          'ERRO NO STORAGE:',
           uploadError
         );
 
@@ -305,7 +304,9 @@ export function Sidebar({
       }
 
       /*
-       * Pegamos a URL pública da imagem.
+       * =====================================================
+       * URL PÚBLICA
+       * =====================================================
        */
 
       const {
@@ -318,7 +319,9 @@ export function Sidebar({
         `${publicUrlData.publicUrl}?t=${Date.now()}`;
 
       /*
-       * Salva a URL no perfil do usuário.
+       * =====================================================
+       * SALVAR URL NO PROFILE
+       * =====================================================
        */
 
       const {
@@ -332,7 +335,7 @@ export function Sidebar({
 
       if (profileError) {
         console.error(
-          'Erro ao atualizar profiles:',
+          'ERRO NO PROFILES:',
           profileError
         );
 
@@ -340,7 +343,7 @@ export function Sidebar({
       }
 
       /*
-       * Atualiza imediatamente na interface.
+       * Atualiza imediatamente a foto na interface.
        */
 
       setAvatarUrl(novaUrl);
@@ -348,27 +351,41 @@ export function Sidebar({
       setIsDirty(false);
 
       /*
-       * Fecha o modal após salvar.
+       * Fecha o modal.
        */
 
       setShowProfileModal(false);
 
       /*
-       * Limpa o input para permitir selecionar
-       * a mesma imagem novamente.
+       * Permite selecionar novamente a mesma imagem.
        */
 
       e.target.value = '';
     } catch (error) {
       console.error(
-        'Erro ao salvar foto de perfil:',
+        'ERRO COMPLETO AO SALVAR FOTO:',
         error
       );
 
+      /*
+       * O Supabase retorna objetos que nem sempre
+       * são instâncias de Error.
+       */
+
+      const erroSupabase = error as {
+        message?: string;
+        error?: string;
+        statusCode?: string | number;
+        status?: string | number;
+      };
+
+      const mensagem =
+        erroSupabase?.message ||
+        erroSupabase?.error ||
+        'Erro desconhecido ao salvar a foto.';
+
       alert(
-        error instanceof Error
-          ? error.message
-          : 'Não foi possível salvar a foto de perfil.'
+        `ERRO AO SALVAR FOTO:\n\n${mensagem}\n\nAbra o Console (F12) para ver os detalhes.`
       );
     } finally {
       setSalvandoFoto(false);
@@ -442,11 +459,10 @@ export function Sidebar({
                   onClick={() =>
                     setCurrentTab(item.id)
                   }
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition ${
-                    isActive
-                      ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400 font-semibold'
-                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:text-gray-900 dark:hover:text-white'
-                  }`}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition ${isActive
+                    ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400 font-semibold'
+                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:text-gray-900 dark:hover:text-white'
+                    }`}
                 >
                   <Icon
                     size={20}
@@ -470,8 +486,6 @@ export function Sidebar({
         ===================================================== */}
 
         <div className="p-4 border-t border-gray-100 dark:border-gray-700 relative">
-
-          {/* MENU DO PERFIL */}
 
           {showProfileMenu && (
             <>
@@ -517,8 +531,6 @@ export function Sidebar({
               </div>
             </>
           )}
-
-          {/* CARD DO USUÁRIO */}
 
           <div className="flex items-center justify-between bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100/80 dark:hover:bg-gray-700 p-2 rounded-2xl transition border border-gray-100 dark:border-gray-700">
 
@@ -621,11 +633,10 @@ export function Sidebar({
                   />
 
                   <label
-                    className={`absolute inset-0 bg-black/40 rounded-full flex flex-col items-center justify-center text-white transition cursor-pointer text-xs font-semibold ${
-                      salvandoFoto
-                        ? 'opacity-100 cursor-wait'
-                        : 'opacity-0 group-hover:opacity-100'
-                    }`}
+                    className={`absolute inset-0 bg-black/40 rounded-full flex flex-col items-center justify-center text-white transition cursor-pointer text-xs font-semibold ${salvandoFoto
+                      ? 'opacity-100 cursor-wait'
+                      : 'opacity-0 group-hover:opacity-100'
+                      }`}
                   >
 
                     <Camera
