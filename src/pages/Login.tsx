@@ -76,6 +76,9 @@ export function Login({ onLoginSuccess }: LoginProps) {
           email: emailFormatado,
           password,
           options: {
+            emailRedirectTo:
+              import.meta.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL ||
+              `${window.location.origin}/auth/callback`,
             data: {
               nome: nome.trim(),
             },
