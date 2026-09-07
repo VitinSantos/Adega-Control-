@@ -119,14 +119,8 @@ export function Sidebar({
         return;
       }
 
-      /*
-       * E-mail vem do Supabase Auth.
-       */
       setEmail(user.email || '');
 
-      /*
-       * Busca os dados adicionais na tabela profiles.
-       */
       const {
         data: profile,
         error,
@@ -266,39 +260,54 @@ export function Sidebar({
       }
 
       /*
-       * Mantemos sempre o mesmo nome do arquivo.
+       * Cada usuário possui sua própria pasta.
        *
-       * Cada usuário possui sua própria pasta:
+       * Agora usamos um nome único para cada upload,
+       * evitando problemas com upsert/update no Storage.
+       *
+       * Exemplo:
        *
        * avatars/
        *   user-id/
-       *     avatar.jpg
+       *     avatar-1725123456789.jpg
        */
-      const caminho = `${user.id}/avatar.jpg`;
+
+      const extensao =
+        arquivo.name.split('.').pop() || 'jpg';
+
+      const caminho =
+        `${user.id}/avatar-${Date.now()}.${extensao}`;
 
       /*
        * Upload da imagem.
        *
-       * upsert: true
-       * substitui a foto anterior.
+       * upsert: false
+       * garante que será feito apenas um INSERT.
        */
+
       const {
         error: uploadError,
       } = await supabase.storage
         .from(AVATAR_BUCKET)
         .upload(caminho, arquivo, {
           cacheControl: '3600',
-          upsert: true,
+          upsert: false,
           contentType: arquivo.type,
         });
 
       if (uploadError) {
+        console.error(
+          'Erro no upload do Storage:',
+          uploadError
+        );
+
         throw uploadError;
       }
 
       /*
        * Pegamos a URL pública da imagem.
        */
+
       const {
         data: publicUrlData,
       } = supabase.storage
@@ -309,8 +318,9 @@ export function Sidebar({
         `${publicUrlData.publicUrl}?t=${Date.now()}`;
 
       /*
-       * Salva a URL no perfil.
+       * Salva a URL no perfil do usuário.
        */
+
       const {
         error: profileError,
       } = await supabase
@@ -321,26 +331,33 @@ export function Sidebar({
         .eq('id', user.id);
 
       if (profileError) {
+        console.error(
+          'Erro ao atualizar profiles:',
+          profileError
+        );
+
         throw profileError;
       }
 
       /*
        * Atualiza imediatamente na interface.
        */
+
       setAvatarUrl(novaUrl);
 
       setIsDirty(false);
 
       /*
-       * O arquivo já foi salvo definitivamente,
-       * então podemos fechar o modal.
+       * Fecha o modal após salvar.
        */
+
       setShowProfileModal(false);
 
       /*
        * Limpa o input para permitir selecionar
        * a mesma imagem novamente.
        */
+
       e.target.value = '';
     } catch (error) {
       console.error(
@@ -425,10 +442,11 @@ export function Sidebar({
                   onClick={() =>
                     setCurrentTab(item.id)
                   }
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition ${isActive
-                    ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400 font-semibold'
-                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:text-gray-900 dark:hover:text-white'
-                    }`}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition ${
+                    isActive
+                      ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400 font-semibold'
+                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:text-gray-900 dark:hover:text-white'
+                  }`}
                 >
                   <Icon
                     size={20}
@@ -454,6 +472,7 @@ export function Sidebar({
         <div className="p-4 border-t border-gray-100 dark:border-gray-700 relative">
 
           {/* MENU DO PERFIL */}
+
           {showProfileMenu && (
             <>
               <div
@@ -500,6 +519,7 @@ export function Sidebar({
           )}
 
           {/* CARD DO USUÁRIO */}
+
           <div className="flex items-center justify-between bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100/80 dark:hover:bg-gray-700 p-2 rounded-2xl transition border border-gray-100 dark:border-gray-700">
 
             <button
@@ -589,6 +609,7 @@ export function Sidebar({
               </div>
 
               {/* FOTO */}
+
               <div className="flex flex-col items-center space-y-4 py-2">
 
                 <div className="relative group">
@@ -600,10 +621,11 @@ export function Sidebar({
                   />
 
                   <label
-                    className={`absolute inset-0 bg-black/40 rounded-full flex flex-col items-center justify-center text-white transition cursor-pointer text-xs font-semibold ${salvandoFoto
-                      ? 'opacity-100 cursor-wait'
-                      : 'opacity-0 group-hover:opacity-100'
-                      }`}
+                    className={`absolute inset-0 bg-black/40 rounded-full flex flex-col items-center justify-center text-white transition cursor-pointer text-xs font-semibold ${
+                      salvandoFoto
+                        ? 'opacity-100 cursor-wait'
+                        : 'opacity-0 group-hover:opacity-100'
+                    }`}
                   >
 
                     <Camera
@@ -636,6 +658,7 @@ export function Sidebar({
               </div>
 
               {/* DADOS */}
+
               <div className="space-y-4">
 
                 <div>
@@ -675,6 +698,7 @@ export function Sidebar({
               </div>
 
               {/* BOTÕES */}
+
               <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 dark:border-gray-700">
 
                 <button
@@ -721,12 +745,14 @@ export function Sidebar({
               <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-700 pb-4">
 
                 <h3 className="text-xl font-bold flex items-center gap-2.5">
+
                   <Settings
                     size={22}
                     className="text-emerald-600 dark:text-emerald-400"
                   />
 
                   Configurações do Sistema
+
                 </h3>
 
                 <button
@@ -745,16 +771,19 @@ export function Sidebar({
               <div className="space-y-4 py-2">
 
                 {/* TEMA */}
+
                 <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-2xl border border-gray-100 dark:border-gray-700">
 
                   <div className="flex items-center gap-3.5">
 
                     <div className="p-2.5 bg-white dark:bg-gray-700 rounded-xl text-emerald-600 dark:text-emerald-400 shadow-sm">
+
                       {theme === 'dark' ? (
                         <Sun size={20} />
                       ) : (
                         <Moon size={20} />
                       )}
+
                     </div>
 
                     <div>
@@ -764,12 +793,17 @@ export function Sidebar({
                       </p>
 
                       <p className="text-xs text-gray-500 dark:text-gray-400">
+
                         Atual:{' '}
+
                         <span className="font-semibold capitalize">
+
                           {theme === 'dark'
                             ? 'Escuro 🌙'
                             : 'Claro ☀️'}
+
                         </span>
+
                       </p>
 
                     </div>
@@ -786,6 +820,7 @@ export function Sidebar({
                 </div>
 
                 {/* SUPORTE */}
+
                 <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-2xl border border-gray-100 dark:border-gray-700">
 
                   <div className="flex items-center gap-3.5">
@@ -820,6 +855,7 @@ export function Sidebar({
                 </div>
 
                 {/* SAIR */}
+
                 <div className="pt-2">
 
                   <button
@@ -909,6 +945,7 @@ export function Sidebar({
           </div>,
           document.body
         )}
+
     </>
   );
 }
