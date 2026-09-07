@@ -24,14 +24,18 @@ export function Login({ onLoginSuccess }: LoginProps) {
   const [erro, setErro] = useState<string | null>(null);
   const [entrando, setEntrando] = useState(false);
 
-  const [modoCadastro, setModoCadastro] = useState(false);
-
-  const [nome, setNome] = useState('');
   const [mensagem, setMensagem] = useState<string | null>(null);
   const [recuperando, setRecuperando] = useState(false);
 
+  /*
+   * ============================
+   * RECUPERAÇÃO DE SENHA
+   * ============================
+   */
+
   const handleResetPassword = async () => {
     const emailFormatado = email.trim().toLowerCase();
+
     setErro(null);
     setMensagem(null);
 
@@ -41,20 +45,38 @@ export function Login({ onLoginSuccess }: LoginProps) {
     }
 
     setRecuperando(true);
-    const { error } = await supabase.auth.resetPasswordForEmail(emailFormatado, {
-      redirectTo: `${window.location.origin}/redefinir-senha`,
-    });
+
+    const { error } = await supabase.auth.resetPasswordForEmail(
+      emailFormatado,
+      {
+        redirectTo: `${window.location.origin}/redefinir-senha`,
+      }
+    );
+
     setRecuperando(false);
 
     if (error) {
-      setErro('Não foi possível enviar o link de redefinição. Tente novamente.');
+      console.error('Erro ao recuperar senha:', error);
+
+      setErro(
+        'Não foi possível enviar o link de redefinição. Tente novamente.'
+      );
+
       return;
     }
 
-    setMensagem('Enviamos um link de redefinição para o seu e-mail.');
+    setMensagem(
+      'Enviamos um link de redefinição para o seu e-mail.'
+    );
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  /*
+   * ============================
+   * LOGIN
+   * ============================
+   */
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     setErro(null);
@@ -66,115 +88,7 @@ export function Login({ onLoginSuccess }: LoginProps) {
     try {
       /*
        * ============================
-       * CADASTRO
-       * ============================
-       */
-
-      if (modoCadastro) {
-        if (!nome.trim()) {
-          setErro('Digite seu nome.');
-          setEntrando(false);
-          return;
-        }
-
-        if (!emailFormatado) {
-          setErro('Digite seu e-mail.');
-          setEntrando(false);
-          return;
-        }
-
-        if (!password) {
-          setErro('Digite sua senha.');
-          setEntrando(false);
-          return;
-        }
-
-        if (password.length < 6) {
-          setErro('A senha precisa ter pelo menos 6 caracteres.');
-          setEntrando(false);
-          return;
-        }
-
-        console.log('Iniciando cadastro:', emailFormatado);
-
-        const { data, error } = await supabase.auth.signUp({
-          email: emailFormatado,
-          password,
-          options: {
-            emailRedirectTo:
-              import.meta.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL ||
-              `${window.location.origin}/auth/callback`,
-            data: {
-              nome: nome.trim(),
-            },
-          },
-        });
-
-        setEntrando(false);
-
-        if (error) {
-          console.error('Erro no cadastro:', error);
-
-          const mensagemErro = error.message.toLowerCase();
-
-          if (
-            mensagemErro.includes('already registered') ||
-            mensagemErro.includes('user already') ||
-            mensagemErro.includes('already exists')
-          ) {
-            setErro(
-              'Este e-mail já possui uma conta. Use "Já tenho uma conta" para entrar.'
-            );
-          } else if (mensagemErro.includes('password')) {
-            setErro('A senha precisa ter pelo menos 6 caracteres.');
-          } else if (mensagemErro.includes('email')) {
-            setErro(error.message);
-          } else {
-            setErro(error.message);
-          }
-
-          return;
-        }
-
-        console.log('Cadastro realizado:', data);
-
-        /*
-         * Se o Supabase retornar uma sessão,
-         * o usuário já está autenticado.
-         */
-
-        if (data.session) {
-          const { error: bootstrapError } = await supabase.rpc('bootstrap_current_user', {
-            display_name: nome.trim(),
-          });
-
-          if (bootstrapError) {
-            setErro('A conta foi criada, mas não foi possível configurar sua organização. Tente entrar novamente.');
-            return;
-          }
-
-          onLoginSuccess();
-          return;
-        }
-
-        /*
-         * Caso a confirmação de e-mail esteja ativada,
-         * o usuário precisa confirmar o e-mail antes de entrar.
-         */
-
-        setMensagem(
-          'Conta criada com sucesso! Confirme seu e-mail antes de entrar.'
-        );
-
-        setModoCadastro(false);
-        setPassword('');
-
-        return;
-      }
-
-      /*
-       * ============================
-       * LOGIN
+       * VALIDAÇÕES
        * ============================
        */
 
@@ -190,6 +104,12 @@ export function Login({ onLoginSuccess }: LoginProps) {
         return;
       }
 
+      /*
+       * ============================
+       * AUTENTICAÇÃO SUPABASE
+       * ============================
+       */
+
       const { error } = await supabase.auth.signInWithPassword({
         email: emailFormatado,
         password,
@@ -198,46 +118,81 @@ export function Login({ onLoginSuccess }: LoginProps) {
       setEntrando(false);
 
       /*
-       * Se houver erro, mostramos o erro REAL
-       * retornado pelo Supabase.
+       * ============================
+       * ERRO DE LOGIN
+       * ============================
        */
 
       if (error) {
         console.error('Erro no login:', error);
+
         const mensagemErro = error.message.toLowerCase();
-        setErro(
+
+        if (
           mensagemErro.includes('invalid login credentials')
-            ? 'E-mail ou senha incorretos.'
-            : mensagemErro.includes('email not confirmed')
-              ? 'Confirme seu e-mail antes de entrar.'
-              : mensagemErro.includes('rate limit')
-                ? 'Muitas tentativas. Aguarde alguns minutos e tente novamente.'
-                : 'Não foi possível entrar. Tente novamente.'
+        ) {
+          setErro('E-mail ou senha incorretos.');
+        } else if (
+          mensagemErro.includes('email not confirmed')
+        ) {
+          setErro('Confirme seu e-mail antes de entrar.');
+        } else if (
+          mensagemErro.includes('rate limit')
+        ) {
+          setErro(
+            'Muitas tentativas. Aguarde alguns minutos e tente novamente.'
+          );
+        } else {
+          setErro(
+            'Não foi possível entrar. Tente novamente.'
+          );
+        }
+
+        return;
+      }
+
+      /*
+       * ============================
+       * CONFIGURAÇÃO DO USUÁRIO
+       * ============================
+       */
+
+      const { error: bootstrapError } = await supabase.rpc(
+        'bootstrap_current_user',
+        {
+          display_name:
+            emailFormatado.split('@')[0],
+        }
+      );
+
+      if (bootstrapError) {
+        console.error(
+          '[v0] Erro ao configurar organização:',
+          bootstrapError
+        );
+
+        await supabase.auth.signOut();
+
+        setErro(
+          'Não foi possível configurar sua organização. Tente novamente.'
         );
 
         return;
       }
 
       /*
-       * Login realizado com sucesso.
+       * ============================
+       * LOGIN CONCLUÍDO
+       * ============================
        */
 
-      const { error: bootstrapError } = await supabase.rpc('bootstrap_current_user', {
-        display_name: nome.trim() || emailFormatado.split('@')[0],
-      });
-
-      if (bootstrapError) {
-        console.error('[v0] Erro ao configurar organização:', bootstrapError);
-        await supabase.auth.signOut();
-        setErro('Não foi possível configurar sua organização. Tente novamente.');
-        return;
-      }
-
       onLoginSuccess();
+
     } catch (error) {
       /*
-       * Trata erros inesperados,
-       * incluindo problemas de conexão.
+       * ============================
+       * ERRO INESPERADO
+       * ============================
        */
 
       setEntrando(false);
@@ -252,19 +207,6 @@ export function Login({ onLoginSuccess }: LoginProps) {
         );
       }
     }
-  };
-
-  /*
-   * Alterna entre Login e Cadastro
-   */
-
-  const alternarModo = () => {
-    setModoCadastro((atual) => !atual);
-
-    setErro(null);
-    setMensagem(null);
-
-    setPassword('');
   };
 
   return (
@@ -397,22 +339,18 @@ export function Login({ onLoginSuccess }: LoginProps) {
 
         <div className="max-w-md w-full space-y-8 bg-white dark:bg-gray-800 p-8 sm:p-10 rounded-3xl shadow-xl border border-gray-100 dark:border-gray-700 transition-colors">
 
-          {/* TÍTULO */}
+          {/* ============================
+              TÍTULO
+          ============================ */}
 
           <div className="text-center">
 
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-              {modoCadastro
-                ? 'Crie sua conta'
-                : 'Acesse o painel'}
+              Acesse o painel
             </h2>
 
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-
-              {modoCadastro
-                ? 'Cadastre-se para começar a utilizar o AdegaControl'
-                : 'Insira suas credenciais para gerenciar sua adega'}
-
+              Insira suas credenciais para gerenciar sua adega
             </p>
 
           </div>
@@ -457,30 +395,6 @@ export function Login({ onLoginSuccess }: LoginProps) {
             )}
 
             {/* ============================
-                NOME
-            ============================ */}
-
-            {modoCadastro && (
-              <div>
-
-                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
-                  Nome
-                </label>
-
-                <input
-                  type="text"
-                  required
-                  value={nome}
-                  onChange={(e) => setNome(e.target.value)}
-                  placeholder="Seu nome"
-                  autoComplete="name"
-                  className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white dark:focus:bg-gray-700 transition"
-                />
-
-              </div>
-            )}
-
-            {/* ============================
                 E-MAIL
             ============================ */}
 
@@ -518,18 +432,14 @@ export function Login({ onLoginSuccess }: LoginProps) {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                autoComplete={
-                  modoCadastro
-                    ? 'new-password'
-                    : 'current-password'
-                }
+                autoComplete="current-password"
                 className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white dark:focus:bg-gray-700 transition"
               />
 
             </div>
 
             {/* ============================
-                BOTÃO
+                BOTÃO ENTRAR
             ============================ */}
 
             <button
@@ -539,44 +449,29 @@ export function Login({ onLoginSuccess }: LoginProps) {
             >
 
               {entrando
-                ? modoCadastro
-                  ? 'Criando conta...'
-                  : 'Entrando...'
-                : modoCadastro
-                  ? 'Criar minha conta'
-                  : 'Entrar no Sistema'}
+                ? 'Entrando...'
+                : 'Entrar no Sistema'}
 
             </button>
 
-            {!modoCadastro && (
-              <button
-                type="button"
-                onClick={handleResetPassword}
-                disabled={entrando || recuperando}
-                className="w-full text-xs font-semibold text-gray-500 dark:text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 disabled:opacity-50"
-              >
-                {recuperando ? 'Enviando link...' : 'Esqueci minha senha'}
-              </button>
-            )}
+            {/* ============================
+                ESQUECI MINHA SENHA
+            ============================ */}
+
+            <button
+              type="button"
+              onClick={handleResetPassword}
+              disabled={entrando || recuperando}
+              className="w-full text-xs font-semibold text-gray-500 dark:text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 disabled:opacity-50"
+            >
+
+              {recuperando
+                ? 'Enviando link...'
+                : 'Esqueci minha senha'}
+
+            </button>
 
           </form>
-
-          {/* ============================
-              ALTERNAR LOGIN / CADASTRO
-          ============================ */}
-
-          <button
-            type="button"
-            onClick={alternarModo}
-            disabled={entrando}
-            className="w-full text-sm font-semibold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-
-            {modoCadastro
-              ? 'Já tenho uma conta'
-              : 'Ainda não tenho uma conta'}
-
-          </button>
 
           {/* ============================
               RODAPÉ
