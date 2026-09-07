@@ -5,7 +5,8 @@ const env = import.meta.env as Record<string, string | undefined>;
 const supabaseUrl =
   env.VITE_SUPABASE_URL ||
   env.NEXT_PUBLIC_SUPABASE_URL ||
-  env.SUPABASE_URL;
+  env.SUPABASE_URL ||
+  'https://oovcndvlsrygacvctdpv.supabase.co';
 
 const supabaseKey =
   env.VITE_SUPABASE_PUBLISHABLE_KEY ||
@@ -13,17 +14,7 @@ const supabaseKey =
   env.VITE_SUPABASE_ANON_KEY ||
   env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
   env.SUPABASE_PUBLISHABLE_KEY ||
-  env.SUPABASE_ANON_KEY;
+  env.SUPABASE_ANON_KEY ||
+  'sb_publishable_uxnIgh1jxLd7tdfkHSiR4g_tiS_12MJ';
 
-if (!supabaseUrl) {
-  throw new Error('VITE_SUPABASE_URL não configurada.');
-}
-
-if (!supabaseKey) {
-  throw new Error('VITE_SUPABASE_PUBLISHABLE_KEY não configurada.');
-}
-
-export const supabase = createClient(
-  supabaseUrl,
-  supabaseKey
-);
+export const supabase = createClient(supabaseUrl, supabaseKey);
