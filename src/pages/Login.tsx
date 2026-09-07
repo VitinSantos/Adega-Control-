@@ -190,10 +190,7 @@ export function Login({ onLoginSuccess }: LoginProps) {
         return;
       }
 
-      console.log('Tentando realizar login...');
-      console.log('E-mail:', emailFormatado);
-
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email: emailFormatado,
         password,
       });
@@ -224,8 +221,6 @@ export function Login({ onLoginSuccess }: LoginProps) {
       /*
        * Login realizado com sucesso.
        */
-
-      console.log('Login realizado com sucesso:', data);
 
       const { error: bootstrapError } = await supabase.rpc('bootstrap_current_user', {
         display_name: nome.trim() || emailFormatado.split('@')[0],
