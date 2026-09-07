@@ -1,6 +1,26 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import type { Produto } from '../types';
+
+interface EstoqueFormData {
+  nome: string;
+  ml: string;
+  qtd: string;
+  custo: string;
+  preco: string;
+  alerta: string;
+}
+
+const ESTOQUE_DRAFT_KEY = 'adegacontrol_estoque_draft';
+
+const formularioVazio: EstoqueFormData = {
+  nome: '',
+  ml: '',
+  qtd: '',
+  custo: '',
+  preco: '',
+  alerta: '',
+};
 
 export function Estoque() {
   const {
@@ -11,36 +31,125 @@ export function Estoque() {
     nomeProdutoExiste,
     criarProduto,
     atualizarProduto,
-    excluirProduto
+    excluirProduto,
   } = useApp();
 
   const [editando, setEditando] = useState<Produto | null>(null);
   const [salvando, setSalvando] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const [formData, setFormData] =
+    useState<EstoqueFormData>(formularioVazio);
 
-    const f = e.currentTarget;
+  /*
+   * RESTAURA O RASCUNHO
+   *
+   * Só fazemos isso uma vez quando a tela é aberta.
+   */
+  useEffect(() => {
+    try {
+      const salvo = localStorage.getItem(ESTOQUE_DRAFT_KEY);
 
-    const nome = (
-      f.elements.namedItem('nome') as HTMLInputElement
-    ).value.trim();
+      if (salvo) {
+        const dados = JSON.parse(salvo);
 
-    // ML é opcional.
-    // Se ficar vazio, o produto será tratado como vendido por unidade.
-    const mlValor = (
-      f.elements.namedItem('ml') as HTMLInputElement
-    ).value.trim();
+        setFormData({
+          ...formularioVazio,
+          ...dados,
+        });
+      }
+    } catch (error) {
+      console.error(
+        'Erro ao restaurar rascunho do estoque:',
+        error
+      );
+    }
+  }, []);
 
-    const mlInput = mlValor === '' ? 0 : Number(mlValor);
+  /*
+   * SALVA AUTOMATICAMENTE O RASCUNHO
+   *
+   * Cada alteração nos campos é salva no navegador.
+   */
+  useEffect(() => {
+    try {
+      const existeAlgumDado = Object.values(formData).some(
+        (valor) => valor.trim() !== ''
+      );
 
-    if (!nome) {
-      adicionarNotificacao('Informe o nome do produto.', 'erro');
+      if (existeAlgumDado) {
+        localStorage.setItem(
+          ESTOQUE_DRAFT_KEY,
+          JSON.stringify(formData)
+        );
+      } else {
+        localStorage.removeItem(ESTOQUE_DRAFT_KEY);
+      }
+    } catch (error) {
+      console.error(
+        'Erro ao salvar rascunho do estoque:',
+        error
+      );
+    }
+  }, [formData]);
+
+  /*
+   * Quando começa a editar um produto,
+   * carregamos os dados dele no formulário.
+   */
+  useEffect(() => {
+    if (!editando) {
       return;
     }
 
-    // Bloqueia nomes duplicados
-    // ignorando o próprio produto quando estamos editando.
+    setFormData({
+      nome: editando.nome || '',
+      ml:
+        editando.mlPorGarrafa > 0
+          ? String(editando.mlPorGarrafa)
+          : '',
+      qtd: String(editando.qtd ?? ''),
+      custo: String(editando.precoCusto ?? ''),
+      preco: String(editando.preco ?? ''),
+      alerta: String(editando.alertaMinimo ?? ''),
+    });
+  }, [editando]);
+
+  const alterarCampo = (
+    campo: keyof EstoqueFormData,
+    valor: string
+  ) => {
+    setFormData((anterior) => ({
+      ...anterior,
+      [campo]: valor,
+    }));
+  };
+
+  const limparFormulario = () => {
+    setFormData(formularioVazio);
+    setEditando(null);
+    localStorage.removeItem(ESTOQUE_DRAFT_KEY);
+  };
+
+  const handleSubmit = async (
+    e: React.FormEvent<HTMLFormElement>
+  ) => {
+    e.preventDefault();
+
+    const nome = formData.nome.trim();
+
+    const mlInput =
+      formData.ml.trim() === ''
+        ? 0
+        : Number(formData.ml);
+
+    if (!nome) {
+      adicionarNotificacao(
+        'Informe o nome do produto.',
+        'erro'
+      );
+      return;
+    }
+
     if (nomeProdutoExiste(nome, editando?.id)) {
       adicionarNotificacao(
         `Já existe um produto chamado "${nome}".`,
@@ -51,23 +160,16 @@ export function Estoque() {
 
     const dados = {
       nome,
-      qtd: Number(
-        (f.elements.namedItem('qtd') as HTMLInputElement).value
-      ),
-      preco: Number(
-        (f.elements.namedItem('preco') as HTMLInputElement).value
-      ),
-      precoCusto: Number(
-        (f.elements.namedItem('custo') as HTMLInputElement).value
-      ),
 
-      // Se o campo ML estiver vazio, salva 0.
-      // 0 = produto vendido somente por unidade.
+      qtd: Number(formData.qtd),
+
+      preco: Number(formData.preco),
+
+      precoCusto: Number(formData.custo),
+
       mlPorGarrafa: mlInput,
 
-      alertaMinimo: Number(
-        (f.elements.namedItem('alerta') as HTMLInputElement).value
-      ),
+      alertaMinimo: Number(formData.alerta),
     };
 
     setSalvando(true);
@@ -75,19 +177,21 @@ export function Estoque() {
     const sucesso = editando
       ? await atualizarProduto({
         ...dados,
-        id: editando.id
+        id: editando.id,
       })
       : await criarProduto(dados);
 
     setSalvando(false);
 
     if (sucesso) {
-      setEditando(null);
-      f.reset();
+      limparFormulario();
     }
   };
 
-  const handleExcluir = async (id: string, nome: string) => {
+  const handleExcluir = async (
+    id: string,
+    nome: string
+  ) => {
     if (
       !confirm(
         `Tem certeza que deseja excluir "${nome}"? Essa ação não pode ser desfeita.`
@@ -102,6 +206,7 @@ export function Estoque() {
   return (
     <div className="p-8 relative bg-adega-bg text-adega-text min-h-full transition-colors">
 
+      {/* NOTIFICAÇÕES */}
       <div className="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full">
         {notificacoes.map((n) => (
           <div
@@ -118,7 +223,9 @@ export function Estoque() {
             <button
               onClick={() =>
                 setNotificacoes(
-                  notificacoes.filter((x) => x.id !== n.id)
+                  notificacoes.filter(
+                    (x) => x.id !== n.id
+                  )
                 )
               }
               className="ml-4 font-bold text-white hover:text-gray-200 text-lg"
@@ -135,6 +242,7 @@ export function Estoque() {
           : 'Estoque - Novo Produto'}
       </h2>
 
+      {/* FORMULÁRIO */}
       <form
         onSubmit={handleSubmit}
         className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8 bg-adega-card border border-adega-border p-6 rounded-3xl shadow-sm"
@@ -148,14 +256,17 @@ export function Estoque() {
 
           <input
             name="nome"
-            defaultValue={editando?.nome}
+            value={formData.nome}
+            onChange={(e) =>
+              alterarCampo('nome', e.target.value)
+            }
             placeholder="Ex: Jack Daniels"
             className="border border-adega-border p-3 rounded-xl bg-adega-bg text-adega-text placeholder-adega-muted focus:outline-none focus:ring-2 focus:ring-emerald-500"
             required
           />
         </div>
 
-        {/* ML - OPCIONAL */}
+        {/* ML */}
         <div className="flex flex-col gap-1">
           <label className="text-xs font-semibold text-adega-muted">
             ML por Garrafa
@@ -169,7 +280,10 @@ export function Estoque() {
             type="number"
             min="0"
             step="1"
-            defaultValue={editando?.mlPorGarrafa || ''}
+            value={formData.ml}
+            onChange={(e) =>
+              alterarCampo('ml', e.target.value)
+            }
             placeholder="Ex: 1000"
             className="border border-adega-border p-3 rounded-xl bg-adega-bg text-adega-text placeholder-adega-muted focus:outline-none focus:ring-2 focus:ring-emerald-500"
           />
@@ -190,7 +304,10 @@ export function Estoque() {
             type="number"
             step="0.01"
             min="0"
-            defaultValue={editando?.qtd}
+            value={formData.qtd}
+            onChange={(e) =>
+              alterarCampo('qtd', e.target.value)
+            }
             placeholder="Ex: 5"
             className="border border-adega-border p-3 rounded-xl bg-adega-bg text-adega-text placeholder-adega-muted focus:outline-none focus:ring-2 focus:ring-emerald-500"
             required
@@ -208,7 +325,10 @@ export function Estoque() {
             type="number"
             step="0.01"
             min="0"
-            defaultValue={editando?.precoCusto}
+            value={formData.custo}
+            onChange={(e) =>
+              alterarCampo('custo', e.target.value)
+            }
             placeholder="Ex: 80.00"
             className="border border-red-300 dark:border-red-900 p-3 rounded-xl bg-adega-bg text-adega-text placeholder-adega-muted focus:outline-none focus:ring-2 focus:ring-red-500"
             required
@@ -226,7 +346,10 @@ export function Estoque() {
             type="number"
             step="0.01"
             min="0"
-            defaultValue={editando?.preco}
+            value={formData.preco}
+            onChange={(e) =>
+              alterarCampo('preco', e.target.value)
+            }
             placeholder="Ex: 150.00"
             className="border border-emerald-300 dark:border-emerald-900 p-3 rounded-xl bg-adega-bg text-adega-text placeholder-adega-muted focus:outline-none focus:ring-2 focus:ring-emerald-500"
             required
@@ -243,7 +366,10 @@ export function Estoque() {
             name="alerta"
             type="number"
             min="0"
-            defaultValue={editando?.alertaMinimo}
+            value={formData.alerta}
+            onChange={(e) =>
+              alterarCampo('alerta', e.target.value)
+            }
             placeholder="Ex: 5"
             className="border border-adega-border p-3 rounded-xl bg-adega-bg text-adega-text placeholder-adega-muted focus:outline-none focus:ring-2 focus:ring-emerald-500"
             required
@@ -252,7 +378,9 @@ export function Estoque() {
 
         {/* BOTÕES */}
         <div className="col-span-2 md:col-span-3 flex gap-2 pt-2">
+
           <button
+            type="submit"
             disabled={salvando}
             className="flex-1 bg-emerald-600 text-white py-3 font-bold rounded-xl hover:bg-emerald-700 transition shadow-md shadow-emerald-600/20 disabled:opacity-50"
           >
@@ -266,7 +394,7 @@ export function Estoque() {
           {editando && (
             <button
               type="button"
-              onClick={() => setEditando(null)}
+              onClick={limparFormulario}
               className="px-6 bg-adega-bg border border-adega-border text-adega-text py-3 font-bold rounded-xl hover:bg-adega-border/50 transition"
             >
               Cancelar
@@ -275,16 +403,19 @@ export function Estoque() {
         </div>
       </form>
 
-      {/* TABELA DO ESTOQUE - MANTIDA */}
+      {/* TABELA */}
       <div className="bg-adega-card border border-adega-border rounded-3xl shadow-sm overflow-hidden">
         <table className="w-full text-sm md:text-base border-collapse">
+
           <thead>
             <tr className="bg-adega-bg border-b border-adega-border text-left text-adega-muted">
               <th className="p-4">Produto</th>
               <th className="p-4">Qtd</th>
               <th className="p-4">Custo</th>
               <th className="p-4">Venda</th>
-              <th className="p-4 text-center">Ações</th>
+              <th className="p-4 text-center">
+                Ações
+              </th>
             </tr>
           </thead>
 
@@ -353,6 +484,7 @@ export function Estoque() {
                   </td>
 
                   <td className="p-4 flex gap-2 justify-center">
+
                     <button
                       onClick={() =>
                         setEditando(p)
@@ -373,11 +505,13 @@ export function Estoque() {
                     >
                       Excluir
                     </button>
+
                   </td>
                 </tr>
               );
             })}
           </tbody>
+
         </table>
       </div>
     </div>
