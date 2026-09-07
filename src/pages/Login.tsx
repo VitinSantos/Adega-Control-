@@ -28,6 +28,31 @@ export function Login({ onLoginSuccess }: LoginProps) {
 
   const [nome, setNome] = useState('');
   const [mensagem, setMensagem] = useState<string | null>(null);
+  const [recuperando, setRecuperando] = useState(false);
+
+  const handleResetPassword = async () => {
+    const emailFormatado = email.trim().toLowerCase();
+    setErro(null);
+    setMensagem(null);
+
+    if (!emailFormatado) {
+      setErro('Informe seu e-mail para receber o link de redefinição.');
+      return;
+    }
+
+    setRecuperando(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(emailFormatado, {
+      redirectTo: `${window.location.origin}/redefinir-senha`,
+    });
+    setRecuperando(false);
+
+    if (error) {
+      setErro('Não foi possível enviar o link de redefinição. Tente novamente.');
+      return;
+    }
+
+    setMensagem('Enviamos um link de redefinição para o seu e-mail.');
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -182,8 +207,16 @@ export function Login({ onLoginSuccess }: LoginProps) {
 
       if (error) {
         console.error('Erro no login:', error);
-
-        setErro(error.message);
+        const mensagemErro = error.message.toLowerCase();
+        setErro(
+          mensagemErro.includes('invalid login credentials')
+            ? 'E-mail ou senha incorretos.'
+            : mensagemErro.includes('email not confirmed')
+              ? 'Confirme seu e-mail antes de entrar.'
+              : mensagemErro.includes('rate limit')
+                ? 'Muitas tentativas. Aguarde alguns minutos e tente novamente.'
+                : 'Não foi possível entrar. Tente novamente.'
+        );
 
         return;
       }
@@ -519,6 +552,17 @@ export function Login({ onLoginSuccess }: LoginProps) {
                   : 'Entrar no Sistema'}
 
             </button>
+
+            {!modoCadastro && (
+              <button
+                type="button"
+                onClick={handleResetPassword}
+                disabled={entrando || recuperando}
+                className="w-full text-xs font-semibold text-gray-500 dark:text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 disabled:opacity-50"
+              >
+                {recuperando ? 'Enviando link...' : 'Esqueci minha senha'}
+              </button>
+            )}
 
           </form>
 
