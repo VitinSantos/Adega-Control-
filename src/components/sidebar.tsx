@@ -12,9 +12,7 @@ import {
   MessageCircle,
   Moon,
   Sun,
-  Camera,
   X,
-  AlertTriangle,
 } from 'lucide-react';
 
 import { useTheme } from '../context/ThemeContext';
@@ -25,11 +23,6 @@ interface SidebarProps {
   setCurrentTab: (tab: string) => void;
   onLogout?: () => void;
 }
-
-const AVATAR_BUCKET = 'avatars';
-
-const AVATAR_PADRAO =
-  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150';
 
 export function Sidebar({
   currentTab,
@@ -47,9 +40,6 @@ export function Sidebar({
   const [showConfigModal, setShowConfigModal] =
     useState(false);
 
-  const [avatarUrl, setAvatarUrl] =
-    useState(AVATAR_PADRAO);
-
   const [nome, setNome] =
     useState('Colaborador');
 
@@ -59,111 +49,64 @@ export function Sidebar({
   const [carregandoPerfil, setCarregandoPerfil] =
     useState(true);
 
-  const [salvandoFoto, setSalvandoFoto] =
-    useState(false);
-
-  const [isDirty, setIsDirty] =
-    useState(false);
-
-  const [showUnsavedAlert, setShowUnsavedAlert] =
-    useState(false);
-
-  const [pendingAction, setPendingAction] =
-    useState<(() => void) | null>(null);
-
   /*
    * =====================================================
    * CARREGAR USUÁRIO E PERFIL
    * =====================================================
    */
 
-  useEffect(() => {
-    carregarPerfil();
-
-    const {
-      data: listener,
-    } = supabase.auth.onAuthStateChange(
-      async (event) => {
-        if (
-          event === 'SIGNED_IN' ||
-          event === 'TOKEN_REFRESHED'
-        ) {
-          await carregarPerfil();
-        }
-
-        if (event === 'SIGNED_OUT') {
-          setAvatarUrl(AVATAR_PADRAO);
-          setNome('Colaborador');
-          setEmail('');
-        }
-      }
-    );
-
-    return () => {
-      listener.subscription.unsubscribe();
-    };
-  }, []);
-
   const carregarPerfil = async () => {
     try {
       setCarregandoPerfil(true);
 
       const {
-        data: {
-          user,
-        },
+        data: { user },
+        error: userError,
       } = await supabase.auth.getUser();
 
+      if (userError) {
+        console.error(
+          'Erro ao buscar usuário:',
+          userError
+        );
+      }
+
       if (!user) {
-        setCarregandoPerfil(false);
+        setNome('Colaborador');
+        setEmail('');
         return;
       }
 
-      setEmail(user.email || '');
+      const emailUsuario = user.email || '';
+
+      setEmail(emailUsuario);
 
       const {
         data: profile,
-        error,
+        error: profileError,
       } = await supabase
         .from('profiles')
-        .select('nome, email, avatar_url')
+        .select('nome, email')
         .eq('id', user.id)
         .maybeSingle();
 
-      if (error) {
+      if (profileError) {
         console.error(
           'Erro ao carregar perfil:',
-          error
+          profileError
         );
       }
 
-      if (profile) {
-        setNome(
-          profile.nome ||
-          user.user_metadata?.nome ||
-          user.email?.split('@')[0] ||
-          'Colaborador'
-        );
+      const nomeUsuario =
+        profile?.nome ||
+        user.user_metadata?.nome ||
+        emailUsuario.split('@')[0] ||
+        'Colaborador';
 
-        setEmail(
-          profile.email ||
-          user.email ||
-          ''
-        );
+      setNome(nomeUsuario);
 
-        if (profile.avatar_url) {
-          setAvatarUrl(profile.avatar_url);
-        } else {
-          setAvatarUrl(AVATAR_PADRAO);
-        }
-      } else {
-        setNome(
-          user.user_metadata?.nome ||
-          user.email?.split('@')[0] ||
-          'Colaborador'
-        );
-
-        setAvatarUrl(AVATAR_PADRAO);
+      if (profile?.email) {
+        setEmail(profile.email);
       }
     } catch (error) {
       console.error(
@@ -177,220 +120,47 @@ export function Sidebar({
 
   /*
    * =====================================================
-   * CONTROLE DE FECHAMENTO
+   * AUTH LISTENER
    * =====================================================
    */
 
-  const handleTryClose = (
-    closeAction: () => void
-  ) => {
-    if (isDirty) {
-      setShowUnsavedAlert(true);
-      setPendingAction(() => closeAction);
-    } else {
-      closeAction();
-    }
-  };
+  useEffect(() => {
+    const initialLoad = window.setTimeout(() => {
+      void carregarPerfil();
+    }, 0);
 
-  const confirmDiscard = () => {
-    setIsDirty(false);
-    setShowUnsavedAlert(false);
+    const {
+      data: authListener,
+    } = supabase.auth.onAuthStateChange(
+      (event) => {
+        if (
+          event === 'SIGNED_IN' ||
+          event === 'TOKEN_REFRESHED'
+        ) {
+          carregarPerfil();
+        }
 
-    carregarPerfil();
+        if (event === 'SIGNED_OUT') {
+          setNome('Colaborador');
+          setEmail('');
+        }
+      }
+    );
 
-    if (pendingAction) {
-      pendingAction();
-    }
-
-    setPendingAction(null);
-  };
+    return () => {
+      window.clearTimeout(initialLoad);
+      authListener.subscription.unsubscribe();
+    };
+  }, []);
 
   /*
    * =====================================================
-   * ALTERAR FOTO
+   * PRIMEIRA LETRA DO E-MAIL
    * =====================================================
    */
 
-  const handleImageChange = async (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const arquivo = e.target.files?.[0];
-
-    if (!arquivo) {
-      return;
-    }
-
-    /*
-     * Limite de 5 MB.
-     */
-
-    if (arquivo.size > 5 * 1024 * 1024) {
-      alert(
-        'A imagem precisa ter no máximo 5 MB.'
-      );
-
-      e.target.value = '';
-      return;
-    }
-
-    /*
-     * Aceitamos somente imagens.
-     */
-
-    if (!arquivo.type.startsWith('image/')) {
-      alert(
-        'Selecione um arquivo de imagem válido.'
-      );
-
-      e.target.value = '';
-      return;
-    }
-
-    try {
-      setSalvandoFoto(true);
-
-      const {
-        data: {
-          user,
-        },
-      } = await supabase.auth.getUser();
-
-      if (!user) {
-        throw new Error(
-          'Usuário não autenticado.'
-        );
-      }
-
-      /*
-       * =====================================================
-       * CAMINHO DA FOTO
-       * =====================================================
-       *
-       * Cada usuário possui sua própria pasta.
-       *
-       * Agora usamos um nome único para evitar
-       * problemas com UPDATE / UPSERT.
-       */
-
-      const extensao =
-        arquivo.name.split('.').pop() || 'jpg';
-
-      const caminho =
-        `${user.id}/avatar-${Date.now()}.${extensao}`;
-
-      /*
-       * =====================================================
-       * UPLOAD PARA O SUPABASE STORAGE
-       * =====================================================
-       */
-
-      const {
-        error: uploadError,
-      } = await supabase.storage
-        .from(AVATAR_BUCKET)
-        .upload(caminho, arquivo, {
-          cacheControl: '3600',
-          upsert: false,
-          contentType: arquivo.type,
-        });
-
-      if (uploadError) {
-        console.error(
-          'ERRO NO STORAGE:',
-          uploadError
-        );
-
-        throw uploadError;
-      }
-
-      /*
-       * =====================================================
-       * URL PÚBLICA
-       * =====================================================
-       */
-
-      const {
-        data: publicUrlData,
-      } = supabase.storage
-        .from(AVATAR_BUCKET)
-        .getPublicUrl(caminho);
-
-      const novaUrl =
-        `${publicUrlData.publicUrl}?t=${Date.now()}`;
-
-      /*
-       * =====================================================
-       * SALVAR URL NO PROFILE
-       * =====================================================
-       */
-
-      const {
-        error: profileError,
-      } = await supabase
-        .from('profiles')
-        .update({
-          avatar_url: novaUrl,
-        })
-        .eq('id', user.id);
-
-      if (profileError) {
-        console.error(
-          'ERRO NO PROFILES:',
-          profileError
-        );
-
-        throw profileError;
-      }
-
-      /*
-       * Atualiza imediatamente a foto na interface.
-       */
-
-      setAvatarUrl(novaUrl);
-
-      setIsDirty(false);
-
-      /*
-       * Fecha o modal.
-       */
-
-      setShowProfileModal(false);
-
-      /*
-       * Permite selecionar novamente a mesma imagem.
-       */
-
-      e.target.value = '';
-    } catch (error) {
-      console.error(
-        'ERRO COMPLETO AO SALVAR FOTO:',
-        error
-      );
-
-      /*
-       * O Supabase retorna objetos que nem sempre
-       * são instâncias de Error.
-       */
-
-      const erroSupabase = error as {
-        message?: string;
-        error?: string;
-        statusCode?: string | number;
-        status?: string | number;
-      };
-
-      const mensagem =
-        erroSupabase?.message ||
-        erroSupabase?.error ||
-        'Erro desconhecido ao salvar a foto.';
-
-      alert(
-        `ERRO AO SALVAR FOTO:\n\n${mensagem}\n\nAbra o Console (F12) para ver os detalhes.`
-      );
-    } finally {
-      setSalvandoFoto(false);
-    }
-  };
+  const inicialEmail =
+    email.trim().charAt(0).toUpperCase() || '?';
 
   /*
    * =====================================================
@@ -426,6 +196,22 @@ export function Sidebar({
     },
   ];
 
+  /*
+   * =====================================================
+   * LOGOUT
+   * =====================================================
+   */
+
+  const handleLogout = () => {
+    setShowProfileMenu(false);
+    setShowConfigModal(false);
+    setShowProfileModal(false);
+
+    if (onLogout) {
+      onLogout();
+    }
+  };
+
   return (
     <>
       <aside className="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col justify-between h-screen sticky top-0 text-gray-900 dark:text-gray-100 z-30 transition-colors duration-200">
@@ -456,12 +242,13 @@ export function Sidebar({
               return (
                 <button
                   key={item.id}
+                  type="button"
                   onClick={() =>
                     setCurrentTab(item.id)
                   }
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition ${isActive
-                    ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400 font-semibold'
-                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:text-gray-900 dark:hover:text-white'
+                      ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400 font-semibold'
+                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:text-gray-900 dark:hover:text-white'
                     }`}
                 >
                   <Icon
@@ -490,37 +277,32 @@ export function Sidebar({
           {showProfileMenu && (
             <>
               <div
-                className="fixed inset-0 z-40 bg-transparent"
+                className="fixed inset-0 z-40"
                 onClick={() =>
                   setShowProfileMenu(false)
                 }
               />
 
-              <div className="absolute bottom-20 left-4 right-4 bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 p-2 z-50 animate-in fade-in zoom-in-95 duration-150">
+              <div className="absolute bottom-20 left-4 right-4 bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 p-2 z-50">
 
                 <button
+                  type="button"
                   onClick={() => {
                     setShowProfileMenu(false);
                     setShowProfileModal(true);
                   }}
                   className="w-full flex items-center gap-3 px-3 py-2.5 text-xs font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-xl transition"
                 >
-                  <Camera
-                    size={16}
-                    className="text-emerald-600 dark:text-emerald-400"
-                  />
+                  <div className="w-7 h-7 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-xs">
+                    {inicialEmail}
+                  </div>
 
-                  Alterar Imagem / Perfil
+                  Meu Perfil
                 </button>
 
                 <button
-                  onClick={() => {
-                    setShowProfileMenu(false);
-
-                    if (onLogout) {
-                      onLogout();
-                    }
-                  }}
+                  type="button"
+                  onClick={handleLogout}
                   className="w-full flex items-center gap-3 px-3 py-2.5 text-xs font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-xl transition"
                 >
                   <LogOut size={16} />
@@ -535,6 +317,7 @@ export function Sidebar({
           <div className="flex items-center justify-between bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100/80 dark:hover:bg-gray-700 p-2 rounded-2xl transition border border-gray-100 dark:border-gray-700">
 
             <button
+              type="button"
               onClick={() =>
                 setShowProfileMenu(
                   !showProfileMenu
@@ -543,18 +326,22 @@ export function Sidebar({
               className="flex items-center gap-3 text-left flex-1 min-w-0"
             >
 
-              <img
-                src={avatarUrl}
-                alt="Foto do colaborador"
-                className="w-9 h-9 rounded-full object-cover border border-emerald-200 dark:border-emerald-600 shrink-0"
-              />
+              {/* AVATAR */}
+
+              <div className="w-9 h-9 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-sm shrink-0 border border-emerald-200 dark:border-emerald-500">
+                {carregandoPerfil
+                  ? '?'
+                  : inicialEmail}
+              </div>
+
+              {/* DADOS */}
 
               <div className="min-w-0">
 
                 <p className="text-xs font-bold text-gray-900 dark:text-white truncate">
                   {carregandoPerfil
                     ? 'Carregando...'
-                    : nome}
+                    : email || 'Sem e-mail'}
                 </p>
 
                 <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate">
@@ -566,6 +353,7 @@ export function Sidebar({
             </button>
 
             <button
+              type="button"
               onClick={() =>
                 setShowConfigModal(true)
               }
@@ -586,20 +374,20 @@ export function Sidebar({
       {showProfileModal &&
         createPortal(
           <div
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 animate-in fade-in duration-200"
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4"
             onClick={() =>
-              handleTryClose(() =>
-                setShowProfileModal(false)
-              )
+              setShowProfileModal(false)
             }
           >
 
             <div
               className="bg-white dark:bg-gray-800 rounded-3xl max-w-lg w-full p-8 shadow-2xl border border-gray-100 dark:border-gray-700 relative space-y-6 text-gray-900 dark:text-white"
-              onClick={(e) =>
-                e.stopPropagation()
+              onClick={(event) =>
+                event.stopPropagation()
               }
             >
+
+              {/* CABEÇALHO */}
 
               <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-700 pb-4">
 
@@ -608,62 +396,28 @@ export function Sidebar({
                 </h3>
 
                 <button
+                  type="button"
                   onClick={() =>
-                    handleTryClose(() =>
-                      setShowProfileModal(false)
-                    )
+                    setShowProfileModal(false)
                   }
                   className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1 rounded-lg"
+                  aria-label="Fechar"
                 >
                   <X size={20} />
                 </button>
 
               </div>
 
-              {/* FOTO */}
+              {/* AVATAR */}
 
               <div className="flex flex-col items-center space-y-4 py-2">
 
-                <div className="relative group">
-
-                  <img
-                    src={avatarUrl}
-                    alt="Avatar"
-                    className="w-28 h-28 rounded-full object-cover border-4 border-emerald-100 dark:border-emerald-900 shadow-md"
-                  />
-
-                  <label
-                    className={`absolute inset-0 bg-black/40 rounded-full flex flex-col items-center justify-center text-white transition cursor-pointer text-xs font-semibold ${salvandoFoto
-                      ? 'opacity-100 cursor-wait'
-                      : 'opacity-0 group-hover:opacity-100'
-                      }`}
-                  >
-
-                    <Camera
-                      size={22}
-                      className="mb-1"
-                    />
-
-                    {salvandoFoto
-                      ? 'Salvando...'
-                      : 'Alterar foto'}
-
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={
-                        handleImageChange
-                      }
-                      disabled={salvandoFoto}
-                      className="hidden"
-                    />
-
-                  </label>
-
+                <div className="w-28 h-28 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-5xl border-4 border-emerald-100 dark:border-emerald-900 shadow-md">
+                  {inicialEmail}
                 </div>
 
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  A foto será salva na sua conta.
+                  Seu avatar utiliza a primeira letra do seu e-mail.
                 </p>
 
               </div>
@@ -674,11 +428,15 @@ export function Sidebar({
 
                 <div>
 
-                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                  <label
+                    htmlFor="perfil-nome"
+                    className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1"
+                  >
                     Nome
                   </label>
 
                   <input
+                    id="perfil-nome"
                     type="text"
                     value={nome}
                     disabled
@@ -689,11 +447,15 @@ export function Sidebar({
 
                 <div>
 
-                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                  <label
+                    htmlFor="perfil-email"
+                    className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1"
+                  >
                     E-mail
                   </label>
 
                   <input
+                    id="perfil-email"
                     type="email"
                     value={email}
                     disabled
@@ -708,15 +470,14 @@ export function Sidebar({
 
               </div>
 
-              {/* BOTÕES */}
+              {/* BOTÃO */}
 
-              <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 dark:border-gray-700">
+              <div className="flex justify-end pt-4 border-t border-gray-100 dark:border-gray-700">
 
                 <button
+                  type="button"
                   onClick={() =>
-                    handleTryClose(() =>
-                      setShowProfileModal(false)
-                    )
+                    setShowProfileModal(false)
                   }
                   className="px-5 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-xl text-xs font-semibold hover:bg-gray-200 dark:hover:bg-gray-600 transition"
                 >
@@ -738,20 +499,20 @@ export function Sidebar({
       {showConfigModal &&
         createPortal(
           <div
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 animate-in fade-in duration-200"
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4"
             onClick={() =>
-              handleTryClose(() =>
-                setShowConfigModal(false)
-              )
+              setShowConfigModal(false)
             }
           >
 
             <div
               className="bg-white dark:bg-gray-800 rounded-3xl max-w-xl w-full p-8 shadow-2xl border border-gray-100 dark:border-gray-700 relative space-y-6 text-gray-900 dark:text-white"
-              onClick={(e) =>
-                e.stopPropagation()
+              onClick={(event) =>
+                event.stopPropagation()
               }
             >
+
+              {/* CABEÇALHO */}
 
               <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-700 pb-4">
 
@@ -767,12 +528,12 @@ export function Sidebar({
                 </h3>
 
                 <button
+                  type="button"
                   onClick={() =>
-                    handleTryClose(() =>
-                      setShowConfigModal(false)
-                    )
+                    setShowConfigModal(false)
                   }
                   className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1 rounded-lg"
+                  aria-label="Fechar"
                 >
                   <X size={20} />
                 </button>
@@ -822,6 +583,7 @@ export function Sidebar({
                   </div>
 
                   <button
+                    type="button"
                     onClick={toggleTheme}
                     className="px-4 py-2 bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 rounded-xl text-xs font-semibold hover:bg-emerald-200 dark:hover:bg-emerald-900 transition"
                   >
@@ -870,13 +632,8 @@ export function Sidebar({
                 <div className="pt-2">
 
                   <button
-                    onClick={() => {
-                      setShowConfigModal(false);
-
-                      if (onLogout) {
-                        onLogout();
-                      }
-                    }}
+                    type="button"
+                    onClick={handleLogout}
                     className="w-full flex items-center justify-center gap-2 py-3.5 bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 rounded-xl text-xs font-semibold hover:bg-red-100 dark:hover:bg-red-950/50 transition border border-red-100 dark:border-red-900/50 shadow-sm"
                   >
                     <LogOut size={18} />
@@ -888,13 +645,14 @@ export function Sidebar({
 
               </div>
 
+              {/* FECHAR */}
+
               <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 dark:border-gray-700">
 
                 <button
+                  type="button"
                   onClick={() =>
-                    handleTryClose(() =>
-                      setShowConfigModal(false)
-                    )
+                    setShowConfigModal(false)
                   }
                   className="px-5 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-xl text-xs font-semibold hover:bg-gray-200 dark:hover:bg-gray-600 transition"
                 >
@@ -908,55 +666,6 @@ export function Sidebar({
           </div>,
           document.body
         )}
-
-      {/* =====================================================
-          ALERTA DE ALTERAÇÕES
-      ===================================================== */}
-
-      {showUnsavedAlert &&
-        createPortal(
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[10000] flex items-center justify-center p-4">
-
-            <div className="bg-white dark:bg-gray-800 rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-gray-100 dark:border-gray-700 text-center space-y-4 text-gray-900 dark:text-white">
-
-              <div className="w-12 h-12 bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 rounded-2xl flex items-center justify-center mx-auto shadow-sm">
-                <AlertTriangle size={24} />
-              </div>
-
-              <h4 className="text-base font-bold">
-                Deseja realmente sair sem salvar?
-              </h4>
-
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                Existem alterações pendentes que serão perdidas se você fechar agora.
-              </p>
-
-              <div className="flex gap-3 pt-2">
-
-                <button
-                  onClick={() =>
-                    setShowUnsavedAlert(false)
-                  }
-                  className="flex-1 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-xl text-xs font-semibold hover:bg-gray-200 dark:hover:bg-gray-600 transition"
-                >
-                  Continuar editando
-                </button>
-
-                <button
-                  onClick={confirmDiscard}
-                  className="flex-1 py-2.5 bg-red-600 text-white rounded-xl text-xs font-semibold hover:bg-red-700 transition shadow-md shadow-red-600/20"
-                >
-                  Sair sem salvar
-                </button>
-
-              </div>
-
-            </div>
-
-          </div>,
-          document.body
-        )}
-
     </>
   );
 }
