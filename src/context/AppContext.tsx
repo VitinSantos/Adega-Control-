@@ -48,15 +48,37 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
+    let ativo = true;
+
     async function carregarTudo() {
       setCarregando(true);
       setErroConexao(null);
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        if (ativo) setCarregando(false);
+        return;
+      }
+
+      const { error: bootstrapError } = await supabase.rpc('bootstrap_current_user', {
+        display_name: session.user.user_metadata?.nome ?? session.user.email?.split('@')[0],
+      });
+
+      if (bootstrapError) {
+        if (ativo) {
+          setErroConexao('Não foi possível preparar sua organização. Entre novamente para tentar.');
+          setCarregando(false);
+        }
+        return;
+      }
 
       const [resProdutos, resReceitas, resVendas] = await Promise.all([
         supabase.from('produtos').select('*').order('nome'),
         supabase.from('receitas').select('*').order('nome'),
         supabase.from('vendas').select('*').order('data_hora_iso', { ascending: true }),
       ]);
+
+      if (!ativo) return;
 
       if (resProdutos.error || resReceitas.error || resVendas.error) {
         const erro = resProdutos.error || resReceitas.error || resVendas.error;
@@ -72,6 +94,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
 
     carregarTudo();
+    const { data: listener } = supabase.auth.onAuthStateChange(() => {
+      carregarTudo();
+    });
+
+    return () => {
+      ativo = false;
+      listener.subscription.unsubscribe();
+    };
   }, []);
 
   const nomeProdutoExiste = (nome: string, ignorarId?: string) => {

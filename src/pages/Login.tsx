@@ -116,6 +116,15 @@ export function Login({ onLoginSuccess }: LoginProps) {
          */
 
         if (data.session) {
+          const { error: bootstrapError } = await supabase.rpc('bootstrap_current_user', {
+            display_name: nome.trim(),
+          });
+
+          if (bootstrapError) {
+            setErro('A conta foi criada, mas não foi possível configurar sua organização. Tente entrar novamente.');
+            return;
+          }
+
           onLoginSuccess();
           return;
         }
@@ -181,6 +190,17 @@ export function Login({ onLoginSuccess }: LoginProps) {
        */
 
       console.log('Login realizado com sucesso:', data);
+
+      const { error: bootstrapError } = await supabase.rpc('bootstrap_current_user', {
+        display_name: nome.trim() || emailFormatado.split('@')[0],
+      });
+
+      if (bootstrapError) {
+        console.error('[v0] Erro ao configurar organização:', bootstrapError);
+        await supabase.auth.signOut();
+        setErro('Não foi possível configurar sua organização. Tente novamente.');
+        return;
+      }
 
       onLoginSuccess();
     } catch (error) {
