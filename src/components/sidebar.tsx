@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { supabase } from '../lib/supabaseClient';
 import { createPortal } from 'react-dom';
 import { LayoutDashboard, ShoppingCart, Package, BookOpen, BarChart3, Settings, LogOut, MessageCircle, Moon, Sun, Camera, X, AlertTriangle } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
@@ -16,9 +17,22 @@ export function Sidebar({ currentTab, setCurrentTab, onLogout }: SidebarProps) {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showConfigModal, setShowConfigModal] = useState(false);
   
-  const [avatarUrl, setAvatarUrl] = useState(() => {
-    return localStorage.getItem('adegacontrol_avatar') || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150';
-  });
+  const fallbackAvatar = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150';
+  const [avatarUrl, setAvatarUrl] = useState(fallbackAvatar);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    supabase.auth.getUser().then(({ data }) => {
+      const id = data.user?.id;
+      if (!mounted || !id) return;
+      setUserId(id);
+      const { data: publicUrl } = supabase.storage.from('avatars').getPublicUrl(`${id}/profile`);
+      setAvatarUrl(`${publicUrl.publicUrl}?v=${Date.now()}`);
+    });
+    return () => { mounted = false; };
+  }, []);
   const [email] = useState('colaborador@adegacontrol.com');
   const [isDirty, setIsDirty] = useState(false);
   const [showUnsavedAlert, setShowUnsavedAlert] = useState(false);
@@ -36,25 +50,35 @@ export function Sidebar({ currentTab, setCurrentTab, onLogout }: SidebarProps) {
   const confirmDiscard = () => {
     setIsDirty(false);
     setShowUnsavedAlert(false);
-    setAvatarUrl(localStorage.getItem('adegacontrol_avatar') || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150');
+    if (userId) {
+      const { data: publicUrl } = supabase.storage.from('avatars').getPublicUrl(`${userId}/profile`);
+      setAvatarUrl(`${publicUrl.publicUrl}?v=${Date.now()}`);
+    } else {
+      setAvatarUrl(fallbackAvatar);
+    }
     if (pendingAction) pendingAction();
   };
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const reader = new FileReader();
-      reader.onload = (uploadEvent) => {
-        if (uploadEvent.target?.result) {
-          setAvatarUrl(uploadEvent.target.result as string);
-          setIsDirty(true);
-        }
-      };
-      reader.readAsDataURL(e.target.files[0]);
-    }
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !userId) return;
+    if (!file.type.startsWith('image/') || file.size > 5 * 1024 * 1024) return;
+
+    setUploadingAvatar(true);
+    const { error } = await supabase.storage.from('avatars').upload(`${userId}/profile`, file, {
+      cacheControl: '3600',
+      upsert: true,
+      contentType: file.type,
+    });
+    setUploadingAvatar(false);
+    if (error) return;
+
+    const { data: publicUrl } = supabase.storage.from('avatars').getPublicUrl(`${userId}/profile`);
+    setAvatarUrl(`${publicUrl.publicUrl}?v=${Date.now()}`);
+    setIsDirty(true);
   };
 
   const saveProfileChanges = () => {
-    localStorage.setItem('adegacontrol_avatar', avatarUrl);
     setIsDirty(false);
     setShowProfileModal(false);
   };
@@ -188,8 +212,8 @@ export function Sidebar({ currentTab, setCurrentTab, onLogout }: SidebarProps) {
                 />
                 <label className="absolute inset-0 bg-black/40 rounded-full flex flex-col items-center justify-center text-white opacity-0 group-hover:opacity-100 transition cursor-pointer text-xs font-semibold">
                   <Camera size={22} className="mb-1" />
-                  Alterar foto
-                  <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
+                  {uploadingAvatar ? 'Enviando...' : 'Alterar foto'}
+                  <input type="file" accept="image/png,image/jpeg,image/webp" onChange={handleImageChange} disabled={uploadingAvatar || !userId} className="hidden" />
                 </label>
               </div>
               <p className="text-xs text-gray-500 dark:text-gray-400">Passe o mouse sobre a foto para alterar</p>
