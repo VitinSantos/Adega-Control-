@@ -5,16 +5,29 @@ export default defineConfig(({ mode }) => {
   const fileEnv = loadEnv(mode, process.cwd(), '')
   const env = { ...fileEnv, ...process.env }
 
-  const supabaseUrl =
-    env.VITE_SUPABASE_URL ??
-    env.NEXT_PUBLIC_SUPABASE_URL ??
-    env.SUPABASE_URL
-  const supabaseKey =
-    env.VITE_SUPABASE_PUBLISHABLE_KEY ??
-    env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
-    env.SUPABASE_PUBLISHABLE_KEY ??
-    env.SUPABASE_ANON_KEY ??
-    env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  const firstConfigured = (...values: Array<string | undefined>) =>
+    values.find((value) => typeof value === 'string' && value.trim().length > 0)
+
+  const supabaseUrl = firstConfigured(
+    fileEnv.VITE_SUPABASE_URL,
+    fileEnv.NEXT_PUBLIC_SUPABASE_URL,
+    fileEnv.SUPABASE_URL,
+    process.env.VITE_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.SUPABASE_URL,
+  )
+  const supabaseKey = firstConfigured(
+    fileEnv.VITE_SUPABASE_PUBLISHABLE_KEY,
+    fileEnv.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+    fileEnv.SUPABASE_PUBLISHABLE_KEY,
+    fileEnv.SUPABASE_ANON_KEY,
+    fileEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    process.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+    process.env.SUPABASE_PUBLISHABLE_KEY,
+    process.env.SUPABASE_ANON_KEY,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  )
 
   return {
     plugins: [react()],
