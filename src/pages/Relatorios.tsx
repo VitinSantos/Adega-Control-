@@ -35,6 +35,7 @@ export function Relatorios() {
     setFiltroInicio('');
     setFiltroFim('');
     setFiltroBusca('');
+    setPaginaHistorico(1);
   };
 
   // Lógica pesada memorizada: Filtra as vendas com base nos controles APLICADOS
@@ -81,6 +82,9 @@ export function Relatorios() {
     }, { faturamento: 0, custo: 0, lucro: 0, qtd: 0 });
   }, [vendasFiltradas]);
 
+  const margemLucro = totais.faturamento > 0 ? (totais.lucro / totais.faturamento) * 100 : 0;
+  const ticketMedio = totais.qtd > 0 ? totais.faturamento / totais.qtd : 0;
+
   // Curva ABC e Produtos Parados
   const { rankingProdutos, produtosParados } = useMemo(() => {
     const mapa: Record<string, { qtd: number, lucro: number, faturamento: number }> = {};
@@ -107,13 +111,14 @@ export function Relatorios() {
     return { rankingProdutos: ranking, produtosParados: parados };
   }, [vendasFiltradas, produtos]);
 
-  // Função para Exportar Excel (CSV)
+  // Exporta exatamente os registros filtrados, com encoding compatível com Excel.
   const exportarCSV = () => {
-    const cabecalho = "Data,Produto,Custo,Vendido Por,Lucro\n";
+    const escaparCSV = (valor: string | number) => `"${String(valor).replace(/"/g, '""')}"`;
+    const cabecalho = '\ufeffData,Produto,Custo,Vendido Por,Lucro\n';
     const linhas = vendasFiltradas.map((v: Venda) => {
       const dataFormatada = new Date(v.dataHoraISO).toLocaleString();
-      return `"${dataFormatada}","${v.nome}",${Number(v.custo || 0).toFixed(2)},${Number(v.preco || 0).toFixed(2)},${Number(v.lucro || 0).toFixed(2)}`;
-    }).join("\n");
+      return [dataFormatada, v.nome, Number(v.custo || 0).toFixed(2), Number(v.preco || 0).toFixed(2), Number(v.lucro || 0).toFixed(2)].map(escaparCSV).join(',');
+    }).join('\n');
 
     const blob = new Blob([cabecalho + linhas], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -148,7 +153,7 @@ export function Relatorios() {
         <h2 className="text-xl md:text-2xl font-bold text-adega-text">Central de Relatórios</h2>
         <div className="flex flex-wrap gap-2 w-full md:w-auto">
           <button onClick={exportarCSV} className="flex-1 md:flex-none bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl font-bold transition shadow-sm text-sm md:text-base">
-            Baixar Excel
+            Baixar CSV
           </button>
           <button onClick={exportarPDF} className="flex-1 md:flex-none bg-adega-card border border-adega-border hover:bg-adega-border/50 text-adega-text px-4 py-2 rounded-xl font-bold transition shadow-sm text-sm md:text-base">
             Imprimir / PDF
@@ -202,8 +207,13 @@ export function Relatorios() {
           <p className="text-xl md:text-2xl font-bold text-blue-500 mt-1">R$ {totais.faturamento.toFixed(2)}</p>
         </div>
         <div className="bg-adega-card border border-adega-border p-5 rounded-2xl shadow-sm border-b-4 border-emerald-500">
-          <p className="text-[11px] font-bold text-adega-muted uppercase">Lucro Limpo</p>
+          <p className="text-[11px] font-bold text-adega-muted uppercase">Lucro Líquido</p>
           <p className="text-xl md:text-2xl font-bold text-emerald-500 mt-1">R$ {totais.lucro.toFixed(2)}</p>
+        </div>
+        <div className="bg-adega-card border border-adega-border p-5 rounded-2xl shadow-sm border-b-4 border-amber-500">
+          <p className="text-[11px] font-bold text-adega-muted uppercase">Margem de Lucro</p>
+          <p className="text-xl md:text-2xl font-bold text-amber-500 mt-1">{margemLucro.toFixed(1)}%</p>
+          <p className="text-[10px] text-adega-muted mt-1">Ticket médio: R$ {ticketMedio.toFixed(2)}</p>
         </div>
       </div>
 

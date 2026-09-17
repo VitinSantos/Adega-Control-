@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import type { Ingrediente } from '../types';
+import type { Ingrediente, Receita } from '../types';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 
 export function Receitas() {
   const { produtos, receitas, adicionarNotificacao, criarReceita, excluirReceita } = useApp();
   const [ingredientes, setIngredientes] = useState<Ingrediente[]>([]);
   const [salvando, setSalvando] = useState(false);
+  const [receitaParaExcluir, setReceitaParaExcluir] = useState<Receita | null>(null);
 
   const [produtoSelecionadoId, setProdutoSelecionadoId] = useState('');
   const [tipoSelecionado, setTipoSelecionado] = useState<'ML' | 'Unidade'>('ML');
@@ -53,13 +55,22 @@ export function Receitas() {
     setQtdIngrediente('');
   };
 
-  const handleExcluir = async (id: string, nome: string) => {
-    if (!confirm(`Tem certeza que deseja excluir a receita "${nome}"?`)) return;
-    await excluirReceita(id);
+  const handleExcluir = (id: string) => {
+    const receita = receitas.find((item) => item.id === id);
+    if (receita) setReceitaParaExcluir(receita);
   };
 
   return (
     <div className="p-8 bg-adega-bg text-adega-text min-h-full transition-colors">
+      {receitaParaExcluir && (
+        <ConfirmDialog
+          title="Excluir receita?"
+          description={`"${receitaParaExcluir.nome}" e sua composição serão removidas permanentemente.`}
+          confirmLabel="Excluir receita"
+          onConfirm={async () => { await excluirReceita(receitaParaExcluir.id); setReceitaParaExcluir(null); adicionarNotificacao('Receita excluída com sucesso.', 'sucesso'); }}
+          onCancel={() => setReceitaParaExcluir(null)}
+        />
+      )}
       <h2 className="text-2xl font-bold mb-6 text-adega-text">Cadastrar Receitas</h2>
       <form onSubmit={salvar} className="bg-adega-card border border-adega-border p-6 rounded-3xl shadow-sm mb-8 space-y-4">
         <div>
@@ -131,7 +142,7 @@ export function Receitas() {
                 <p className="text-xs text-emerald-500 font-semibold mt-0.5">R$ {Number(r.preco || 0).toFixed(2)}</p>
                 <p className="text-xs text-adega-muted mt-1">Ingredientes: {r.ingredientes.map((ing) => `${ing.nome} (${ing.qtd}${ing.tipo})`).join(', ')}</p>
               </div>
-              <button onClick={() => handleExcluir(r.id, r.nome)} className="bg-red-600 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-red-700 transition shadow-sm">Excluir</button>
+              <button type="button" onClick={() => handleExcluir(r.id)} className="bg-red-600 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-red-700 transition shadow-sm">Excluir</button>
             </div>
           ))
         )}
