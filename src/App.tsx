@@ -19,16 +19,22 @@ export default function App() {
   useEffect(() => {
     let ativo = true;
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const carregarSessao = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+
       if (ativo) {
         setIsLoggedIn(Boolean(session));
         setAuthCarregando(false);
       }
-    });
+    };
+
+    carregarSessao();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setIsLoggedIn(Boolean(session));
-      setAuthCarregando(false);
+      if (ativo) {
+        setIsLoggedIn(Boolean(session));
+        setAuthCarregando(false);
+      }
     });
 
     return () => {

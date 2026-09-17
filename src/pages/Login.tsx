@@ -66,12 +66,14 @@ export function Login({ onLoginSuccess }: LoginProps) {
           },
         });
 
-        console.log('Resultado do cadastro:', data);
-        console.log('Erro do cadastro:', error);
-
         if (error) {
-          console.error('Erro no cadastro:', error);
-          setErro(error.message);
+          setErro(
+            error.code === 'user_already_exists'
+              ? 'Este e-mail já está cadastrado.'
+              : error.code === 'weak_password'
+                ? 'A senha não atende aos requisitos mínimos.'
+                : 'Não foi possível criar a conta. Verifique os dados e tente novamente.'
+          );
           setEntrando(false);
           return;
         }
@@ -104,24 +106,21 @@ export function Login({ onLoginSuccess }: LoginProps) {
       /*
        * LOGIN
        */
-      const { data, error } =
+      const { error } =
         await supabase.auth.signInWithPassword({
           email: emailNormalizado,
           password,
         });
 
-      console.log('Resultado do login:', data);
-      console.log('Erro do login:', error);
-
       setEntrando(false);
 
       if (error) {
-        console.error('Erro no login:', error);
-
         setErro(
           error.message === 'Invalid login credentials'
             ? 'E-mail ou senha inválidos.'
-            : error.message
+            : error.code === 'email_not_confirmed'
+              ? 'Confirme seu e-mail antes de entrar.'
+              : 'Não foi possível entrar. Tente novamente.'
         );
 
         return;
@@ -130,8 +129,6 @@ export function Login({ onLoginSuccess }: LoginProps) {
       /*
        * LOGIN REALIZADO COM SUCESSO
        */
-      console.log('Login realizado com sucesso.');
-
       onLoginSuccess();
     } catch (error) {
       console.error('Erro inesperado:', error);
