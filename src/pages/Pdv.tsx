@@ -72,9 +72,13 @@ export function Pdv() {
       dataHoraISO: new Date().toISOString(),
     };
 
-    await registrarVenda(novaVenda);
+    const vendaRegistrada = await registrarVenda(novaVenda);
+    if (vendaRegistrada) {
+      adicionarNotificacao(`Venda registrada: ${item.nome} — R$ ${precoVenda.toFixed(2)}`, 'sucesso');
+      setIniciandoVenda(false);
+      setBusca('');
+    }
     setProcessando(false);
-    setIniciandoVenda(false);
     setBusca('');
   };
 
@@ -84,9 +88,14 @@ export function Pdv() {
     <div className="p-3 md:p-6 lg:p-8 relative bg-adega-bg text-adega-text min-h-full transition-colors">
       <div className="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-[90%] md:w-full mx-auto">
         {notificacoes.map((n) => (
-          <div key={n.id} className={`p-4 rounded-2xl shadow-xl text-white flex justify-between items-center transition-all ${n.tipo === 'erro' ? 'bg-red-600 border-l-4 border-red-800' : 'bg-amber-500 border-l-4 border-amber-700'}`}>
+          <div
+            key={n.id}
+            role="status"
+            onClick={() => setNotificacoes(notificacoes.filter((x) => x.id !== n.id))}
+            className={`p-4 rounded-2xl shadow-xl text-white flex justify-between items-center transition-all cursor-pointer ${n.tipo === 'erro' ? 'bg-red-600 border-l-4 border-red-800' : n.tipo === 'sucesso' ? 'bg-emerald-600 border-l-4 border-emerald-800' : 'bg-amber-500 border-l-4 border-amber-700'}`}
+          >
             <span className="font-medium text-sm">{n.mensagem}</span>
-            <button onClick={() => setNotificacoes(notificacoes.filter((x) => x.id !== n.id))} className="ml-4 font-bold">✕</button>
+            <button aria-label="Fechar aviso" onClick={(event) => { event.stopPropagation(); setNotificacoes(notificacoes.filter((x) => x.id !== n.id)); }} className="ml-4 font-bold">OK</button>
           </div>
         ))}
       </div>

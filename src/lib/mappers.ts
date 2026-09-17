@@ -8,6 +8,7 @@ interface ProdutoRow {
   preco_custo: number | string;
   ml_por_garrafa: number | string;
   alerta_minimo: number | string;
+  alerta_critico: number | string;
 }
 
 interface ReceitaRow {
@@ -36,6 +37,7 @@ export function produtoDoBanco(row: ProdutoRow): Produto {
     precoCusto: Number(row.preco_custo),
     mlPorGarrafa: Number(row.ml_por_garrafa),
     alertaMinimo: Number(row.alerta_minimo),
+    alertaCritico: Number(row.alerta_critico),
   };
 }
 
@@ -47,6 +49,7 @@ export function produtoParaBanco(p: Omit<Produto, 'id'> | Produto) {
     preco_custo: p.precoCusto,
     ml_por_garrafa: p.mlPorGarrafa,
     alerta_minimo: p.alertaMinimo,
+    alerta_critico: p.alertaCritico,
   };
 }
 

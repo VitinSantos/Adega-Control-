@@ -42,9 +42,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const adicionarNotificacao = (mensagem: string, tipo: TipoNotificacao = 'aviso') => {
     const id = crypto.randomUUID();
     setNotificacoes(prev => [...prev, { id, mensagem, tipo }]);
-    setTimeout(() => {
-      setNotificacoes(prev => prev.filter(n => n.id !== id));
-    }, 6000);
+    if (tipo !== 'sucesso') {
+      setTimeout(() => {
+        setNotificacoes(prev => prev.filter(n => n.id !== id));
+      }, 6000);
+    }
   };
 
   useEffect(() => {
@@ -176,8 +178,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
 
     const garrafasFechadas = Math.trunc(estoqueFinal);
-    if (garrafasFechadas <= p.alertaMinimo) {
-      adicionarNotificacao(`Estoque crítico para: ${p.nome} (Restam apenas ${garrafasFechadas} un)`, 'aviso');
+    if (garrafasFechadas <= p.alertaCritico) {
+      adicionarNotificacao(`Estoque crítico: ${p.nome} tem apenas ${garrafasFechadas} un restantes.`, 'erro');
+    } else if (garrafasFechadas <= p.alertaMinimo) {
+      adicionarNotificacao(`Estoque baixo: ${p.nome} tem ${garrafasFechadas} un restantes.`, 'aviso');
     }
 
     setProdutos(prev => prev.map(prod => (prod.id === produtoId ? produtoDoBanco(data) : prod)));
