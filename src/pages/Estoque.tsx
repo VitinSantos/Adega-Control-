@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import type { Produto } from '../types';
 
@@ -6,6 +6,19 @@ export function Estoque() {
   const { produtos, notificacoes, setNotificacoes, adicionarNotificacao, nomeProdutoExiste, criarProduto, atualizarProduto, excluirProduto } = useApp();
   const [editando, setEditando] = useState<Produto | null>(null);
   const [salvando, setSalvando] = useState(false);
+  const [busca, setBusca] = useState('');
+  const [filtroStatus, setFiltroStatus] = useState<'todos' | 'normal' | 'baixo' | 'critico'>('todos');
+  const [pagina, setPagina] = useState(1);
+  const produtosPorPagina = 10;
+
+  const produtosFiltrados = useMemo(() => produtos.filter((produto) => {
+    const termo = busca.trim().toLowerCase();
+    const status = produto.qtd <= 0 || Math.trunc(produto.qtd) <= produto.alertaCritico ? 'critico' : Math.trunc(produto.qtd) <= produto.alertaMinimo ? 'baixo' : 'normal';
+    return (!termo || produto.nome.toLowerCase().includes(termo)) && (filtroStatus === 'todos' || status === filtroStatus);
+  }), [produtos, busca, filtroStatus]);
+
+  const totalPaginas = Math.max(1, Math.ceil(produtosFiltrados.length / produtosPorPagina));
+  const produtosVisiveis = produtosFiltrados.slice((pagina - 1) * produtosPorPagina, pagina * produtosPorPagina);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -122,6 +135,14 @@ export function Estoque() {
       </form>
 
       <div className="bg-adega-card border border-adega-border rounded-3xl shadow-sm overflow-hidden">
+        <div className="p-4 md:p-5 border-b border-adega-border flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
+          <input value={busca} onChange={(e) => { setBusca(e.target.value); setPagina(1); }} placeholder="Buscar produto..." className="w-full md:max-w-sm border border-adega-border p-3 rounded-xl bg-adega-bg text-adega-text placeholder-adega-muted focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+          <div className="flex gap-2 overflow-x-auto">
+            {(['todos', 'normal', 'baixo', 'critico'] as const).map((status) => (
+              <button key={status} type="button" onClick={() => { setFiltroStatus(status); setPagina(1); }} className={`px-3 py-2 rounded-xl text-xs font-bold capitalize whitespace-nowrap border ${filtroStatus === status ? 'bg-emerald-600 border-emerald-600 text-white' : 'border-adega-border text-adega-muted hover:text-adega-text'}`}>{status}</button>
+            ))}
+          </div>
+        </div>
         <table className="w-full text-sm md:text-base border-collapse">
           <thead>
             <tr className="bg-adega-bg border-b border-adega-border text-left text-adega-muted">
@@ -133,7 +154,7 @@ export function Estoque() {
             </tr>
           </thead>
           <tbody>
-            {produtos.map((p) => {
+            {produtosVisiveis.map((p) => {
               const garrafasFechadas = Math.trunc(p.qtd);
               const volumeTotalML = p.mlPorGarrafa > 0 ? Math.round(p.qtd * p.mlPorGarrafa) : 0;
               const estoqueZeradoOuNegativo = p.qtd <= 0;
@@ -163,6 +184,14 @@ export function Estoque() {
             })}
           </tbody>
         </table>
+        <div className="p-4 border-t border-adega-border flex items-center justify-between gap-3 text-xs text-adega-muted">
+          <span>{produtosFiltrados.length} produto(s) encontrado(s)</span>
+          <div className="flex items-center gap-2">
+            <button type="button" disabled={pagina === 1} onClick={() => setPagina((p) => p - 1)} className="px-3 py-2 rounded-lg border border-adega-border disabled:opacity-40">Anterior</button>
+            <span>Página {pagina} de {totalPaginas}</span>
+            <button type="button" disabled={pagina === totalPaginas} onClick={() => setPagina((p) => p + 1)} className="px-3 py-2 rounded-lg border border-adega-border disabled:opacity-40">Próxima</button>
+          </div>
+        </div>
       </div>
     </div>
   );

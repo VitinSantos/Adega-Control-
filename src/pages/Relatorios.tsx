@@ -16,6 +16,8 @@ export function Relatorios() {
   const [filtroBusca, setFiltroBusca] = useState('');
 
   const [abaAtiva, setAbaAtiva] = useState<'historico' | 'analise'>('historico');
+  const [paginaHistorico, setPaginaHistorico] = useState(1);
+  const registrosPorPagina = 10;
 
   // Função disparada ao clicar no botão de Pesquisar
   const lidarComPesquisa = (e: React.FormEvent) => {
@@ -23,6 +25,7 @@ export function Relatorios() {
     setFiltroInicio(inputInicio);
     setFiltroFim(inputFim);
     setFiltroBusca(inputBusca);
+    setPaginaHistorico(1);
   };
 
   const limparFiltros = () => {
@@ -64,6 +67,10 @@ export function Relatorios() {
   }, [vendas, filtroInicio, filtroFim, filtroBusca]);
 
   // Cálculo dos totais do período com blindagem numérica
+  const vendasOrdenadas = useMemo(() => vendasFiltradas.slice().reverse(), [vendasFiltradas]);
+  const totalPaginasHistorico = Math.max(1, Math.ceil(vendasOrdenadas.length / registrosPorPagina));
+  const vendasVisiveis = vendasOrdenadas.slice((paginaHistorico - 1) * registrosPorPagina, paginaHistorico * registrosPorPagina);
+
   const totais = useMemo(() => {
     return vendasFiltradas.reduce((acc: { faturamento: number, custo: number, lucro: number, qtd: number }, curr: Venda) => {
       acc.faturamento += Number(curr.preco || 0);
@@ -241,7 +248,7 @@ export function Relatorios() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-adega-border">
-                  {vendasFiltradas.slice().reverse().map((v: Venda, i: number) => (
+                  {vendasVisiveis.map((v: Venda, i: number) => (
                     <tr key={i} className="hover:bg-adega-bg/50 transition-colors">
                       <td className="p-4 text-adega-muted whitespace-nowrap text-xs">{new Date(v.dataHoraISO).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}</td>
                       <td className="p-4 font-medium text-adega-text">{v.nome}</td>
@@ -254,6 +261,16 @@ export function Relatorios() {
               </table>
             )}
           </div>
+          {vendasOrdenadas.length > 0 && (
+            <div className="p-4 border-t border-adega-border flex items-center justify-between gap-3 text-xs text-adega-muted print:hidden">
+              <span>Mostrando {vendasVisiveis.length} de {vendasOrdenadas.length}</span>
+              <div className="flex items-center gap-2">
+                <button type="button" disabled={paginaHistorico === 1} onClick={() => setPaginaHistorico((p) => p - 1)} className="px-3 py-2 rounded-lg border border-adega-border disabled:opacity-40">Anterior</button>
+                <span>Página {paginaHistorico} de {totalPaginasHistorico}</span>
+                <button type="button" disabled={paginaHistorico === totalPaginasHistorico} onClick={() => setPaginaHistorico((p) => p + 1)} className="px-3 py-2 rounded-lg border border-adega-border disabled:opacity-40">Próxima</button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
