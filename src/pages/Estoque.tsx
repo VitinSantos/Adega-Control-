@@ -31,6 +31,7 @@ export function Estoque() {
       precoCusto: Number((f.elements.namedItem('custo') as HTMLInputElement).value),
       mlPorGarrafa: mlInput,
       alertaMinimo: Number((f.elements.namedItem('alerta') as HTMLInputElement).value),
+      alertaCritico: Number((f.elements.namedItem('critico') as HTMLInputElement).value),
     };
 
     setSalvando(true);
@@ -93,8 +94,15 @@ export function Estoque() {
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-semibold text-adega-muted">Alerta Mínimo (Un)</label>
-          <input name="alerta" type="number" min="0" defaultValue={editando?.alertaMinimo} placeholder="Ex: 5" className="border border-adega-border p-3 rounded-xl bg-adega-bg text-adega-text placeholder-adega-muted focus:outline-none focus:ring-2 focus:ring-emerald-500" required />
+          <label className="text-xs font-semibold text-adega-muted">Alerta amarelo (Un)</label>
+          <input name="alerta" type="number" min="0" defaultValue={editando?.alertaMinimo} placeholder="Ex: 10" className="border border-amber-300 dark:border-amber-900 p-3 rounded-xl bg-adega-bg text-adega-text placeholder-adega-muted focus:outline-none focus:ring-2 focus:ring-amber-500" required />
+          <span className="text-[11px] text-adega-muted">Começa a avisar quando chegar neste limite.</span>
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-semibold text-adega-muted">Alerta vermelho (Un)</label>
+          <input name="critico" type="number" min="0" defaultValue={editando?.alertaCritico ?? 5} placeholder="Ex: 5" className="border border-red-300 dark:border-red-900 p-3 rounded-xl bg-adega-bg text-adega-text placeholder-adega-muted focus:outline-none focus:ring-2 focus:ring-red-500" required />
+          <span className="text-[11px] text-adega-muted">Abaixo deste limite, o estoque é crítico.</span>
         </div>
 
         <div className="col-span-2 md:col-span-3 flex gap-2 pt-2">
@@ -138,8 +146,11 @@ export function Estoque() {
                       {p.mlPorGarrafa > 0 ? `${volumeTotalML} ml total` : ''}
                     </span>
                   </td>
-                  <td className={`p-4 font-bold ${estoqueZeradoOuNegativo ? 'text-red-500' : garrafasFechadas <= p.alertaMinimo ? 'text-amber-500' : 'text-adega-text'}`}>
-                    {garrafasFechadas} un {estoqueZeradoOuNegativo ? '❌' : garrafasFechadas <= p.alertaMinimo ? '⚠️' : ''}
+                  <td className={`p-4 font-bold ${estoqueZeradoOuNegativo || garrafasFechadas <= p.alertaCritico ? 'text-red-500' : garrafasFechadas <= p.alertaMinimo ? 'text-amber-500' : 'text-adega-text'}`}>
+                    {garrafasFechadas} un
+                    <span className="block text-[10px] uppercase tracking-wide">
+                      {estoqueZeradoOuNegativo || garrafasFechadas <= p.alertaCritico ? 'Crítico' : garrafasFechadas <= p.alertaMinimo ? 'Baixo' : 'Normal'}
+                    </span>
                   </td>
                   <td className="p-4 text-red-500 font-medium">R$ {p.precoCusto?.toFixed(2) || '0.00'}</td>
                   <td className="p-4 text-emerald-600 dark:text-emerald-400 font-bold">R$ {p.preco.toFixed(2)}</td>

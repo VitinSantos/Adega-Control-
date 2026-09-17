@@ -8,6 +8,7 @@ export interface Produto {
   precoCusto: number;
   mlPorGarrafa: number;
   alertaMinimo: number;
+  alertaCritico: number;
 }
 
 export interface Ingrediente {
@@ -34,7 +35,7 @@ export interface Venda {
   dataHoraISO: string;
 }
 
-export type TipoNotificacao = 'aviso' | 'erro';
+export type TipoNotificacao = 'sucesso' | 'aviso' | 'erro';
 
 export interface Notificacao {
   id: string;
