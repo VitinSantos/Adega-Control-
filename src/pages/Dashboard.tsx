@@ -109,8 +109,10 @@ export function Dashboard() {
           {['diario', 'semanal', 'mensal'].map((f) => (
             <button
               key={f}
+              type="button"
+              aria-pressed={filtro === f}
               onClick={() => { setFiltro(f as 'diario' | 'semanal' | 'mensal'); setDetalhesSelecionados(null); }}
-              className={`flex-1 md:flex-none px-4 py-2 rounded-xl font-bold capitalize transition text-sm md:text-base ${filtro === f ? 'bg-adega-primary text-white' : 'bg-adega-bg text-adega-muted hover:bg-adega-border/50'}`}
+              className={`flex-1 md:flex-none px-4 py-2 rounded-xl border font-bold capitalize transition text-sm md:text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-adega-primary focus-visible:ring-offset-2 focus-visible:ring-offset-adega-card ${filtro === f ? 'bg-adega-primary border-adega-primary text-white shadow-md ring-2 ring-adega-primary/30 dark:shadow-adega-primary/20' : 'bg-adega-bg border-adega-border text-adega-text hover:bg-adega-border/50 hover:border-adega-primary/60'}`}
             >
               {f}
             </button>
