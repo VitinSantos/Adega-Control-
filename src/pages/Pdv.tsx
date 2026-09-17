@@ -66,7 +66,9 @@ export function Pdv() {
       preco: precoVenda,
       custo: custoDoItem,
       lucro: precoVenda - custoDoItem,
-      data: new Date().toLocaleTimeString(),
+      // A coluna `data` no Supabase é do tipo date, então ela precisa
+      // receber apenas a data, nunca o horário local (ex.: "18:13:00").
+      data: new Date().toISOString().slice(0, 10),
       dataHoraISO: new Date().toISOString(),
     };
 
