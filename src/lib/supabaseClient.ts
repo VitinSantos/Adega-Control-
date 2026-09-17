@@ -11,7 +11,11 @@ if (!supabaseKey) {
   throw new Error('VITE_SUPABASE_PUBLISHABLE_KEY não configurada.');
 }
 
-export const supabase = createClient(
-  supabaseUrl,
-  supabaseKey
-);
+export const supabase = createClient(supabaseUrl, supabaseKey, {
+  auth: {
+    // Mantém a sessão no navegador e a renova automaticamente após recarregar.
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+  },
+});
