@@ -1,11 +1,13 @@
 import { useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import type { Produto } from '../types';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 
 export function Estoque() {
   const { produtos, notificacoes, setNotificacoes, adicionarNotificacao, nomeProdutoExiste, criarProduto, atualizarProduto, excluirProduto } = useApp();
   const [editando, setEditando] = useState<Produto | null>(null);
   const [salvando, setSalvando] = useState(false);
+  const [confirmacao, setConfirmacao] = useState<{ tipo: 'excluir' | 'editar'; produto?: Produto } | null>(null);
   const [busca, setBusca] = useState('');
   const [filtroStatus, setFiltroStatus] = useState<'todos' | 'normal' | 'baixo' | 'critico'>('todos');
   const [pagina, setPagina] = useState(1);
@@ -56,16 +58,37 @@ export function Estoque() {
     if (sucesso) {
       setEditando(null);
       f.reset();
+      adicionarNotificacao(editando ? 'Produto atualizado com sucesso.' : 'Produto adicionado com sucesso.', 'sucesso');
     }
   };
 
+  const confirmarAcao = async () => {
+    if (!confirmacao?.produto) return;
+    if (confirmacao.tipo === 'excluir') {
+      await excluirProduto(confirmacao.produto.id);
+      adicionarNotificacao('Produto excluído com sucesso.', 'sucesso');
+    } else {
+      setEditando(confirmacao.produto);
+    }
+    setConfirmacao(null);
+  };
+
   const handleExcluir = async (id: string, nome: string) => {
-    if (!confirm(`Tem certeza que deseja excluir "${nome}"? Essa ação não pode ser desfeita.`)) return;
-    await excluirProduto(id);
+    setConfirmacao({ tipo: 'excluir', produto: { id, nome } as Produto });
   };
 
   return (
     <div className="p-8 relative bg-adega-bg text-adega-text min-h-full transition-colors">
+      {confirmacao && (
+        <ConfirmDialog
+          title={confirmacao.tipo === 'excluir' ? 'Excluir produto?' : 'Editar produto?'}
+          description={confirmacao.tipo === 'excluir' ? `"${confirmacao.produto?.nome}" será removido permanentemente do estoque.` : `Você está prestes a editar "${confirmacao.produto?.nome}".`}
+          confirmLabel={confirmacao.tipo === 'excluir' ? 'Excluir produto' : 'Continuar edição'}
+          tone={confirmacao.tipo === 'excluir' ? 'danger' : 'primary'}
+          onConfirm={confirmarAcao}
+          onCancel={() => setConfirmacao(null)}
+        />
+      )}
       <div className="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full">
         {notificacoes.map((n) => (
           <div
@@ -176,7 +199,7 @@ export function Estoque() {
                   <td className="p-4 text-red-500 font-medium">R$ {p.precoCusto?.toFixed(2) || '0.00'}</td>
                   <td className="p-4 text-emerald-600 dark:text-emerald-400 font-bold">R$ {p.preco.toFixed(2)}</td>
                   <td className="p-4 flex gap-2 justify-center">
-                    <button onClick={() => setEditando(p)} className="bg-blue-600 text-white px-3 py-1.5 rounded-xl hover:bg-blue-700 transition text-xs font-bold">Editar</button>
+                    <button onClick={() => setConfirmacao({ tipo: 'editar', produto: p })} className="bg-blue-600 text-white px-3 py-1.5 rounded-xl hover:bg-blue-700 transition text-xs font-bold">Editar</button>
                     <button onClick={() => handleExcluir(p.id, p.nome)} className="bg-red-600 text-white px-3 py-1.5 rounded-xl hover:bg-red-700 transition text-xs font-bold">Excluir</button>
                   </td>
                 </tr>
