@@ -3,7 +3,6 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig(({ mode }) => {
   const fileEnv = loadEnv(mode, process.cwd(), '')
-  const env = { ...fileEnv, ...process.env }
 
   const firstConfigured = (...values: Array<string | undefined>) =>
     values.find((value) => typeof value === 'string' && value.trim().length > 0)
