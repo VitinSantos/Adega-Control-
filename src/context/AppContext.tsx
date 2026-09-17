@@ -7,6 +7,15 @@ import {
   vendaDoBanco, vendaParaBanco,
 } from '../lib/mappers';
 
+function mensagemDeErroOperacional(operacao: string, error?: { code?: string | null; status?: number; message?: string } | null) {
+  if (error?.code === '23505') return 'Já existe um registro com esses dados.';
+  if (error?.code === '23503') return 'Não é possível concluir: este registro está vinculado a outros dados.';
+  if (error?.code === '23514' || error?.code === '22003') return 'Os dados informados não são válidos.';
+  if (error?.status === 401 || error?.status === 403) return 'Você não tem permissão para realizar esta operação.';
+  if (error?.status === 409) return 'A operação entrou em conflito. Atualize a tela e tente novamente.';
+  return `Não foi possível ${operacao}. Tente novamente.`;
+}
+
 interface AppContextValue {
   produtos: Produto[];
   receitas: Receita[];
@@ -62,7 +71,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       if (resProdutos.error || resReceitas.error || resVendas.error) {
         const erro = resProdutos.error || resReceitas.error || resVendas.error;
-        setErroConexao(`Não foi possível conectar ao banco de dados: ${erro?.message}`);
+        setErroConexao(mensagemDeErroOperacional('carregar os dados do sistema', erro));
         setCarregando(false);
         return;
       }
@@ -89,7 +98,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       .single();
 
     if (error || !data) {
-      adicionarNotificacao(`Erro ao salvar produto: ${error?.message}`, 'erro');
+      adicionarNotificacao(mensagemDeErroOperacional('salvar o produto', error), 'erro');
       return false;
     }
     setProdutos(prev => [...prev, produtoDoBanco(data)]);
@@ -105,7 +114,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       .single();
 
     if (error || !data) {
-      adicionarNotificacao(`Erro ao atualizar produto: ${error?.message}`, 'erro');
+      adicionarNotificacao(mensagemDeErroOperacional('atualizar o produto', error), 'erro');
       return false;
     }
     setProdutos(prev => prev.map(p => (p.id === produto.id ? produtoDoBanco(data) : p)));
@@ -115,7 +124,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const excluirProduto = async (id: string): Promise<boolean> => {
     const { error } = await supabase.from('produtos').delete().eq('id', id);
     if (error) {
-      adicionarNotificacao(`Erro ao excluir produto: ${error.message}`, 'erro');
+      adicionarNotificacao(mensagemDeErroOperacional('excluir o produto', error), 'erro');
       return false;
     }
     setProdutos(prev => prev.filter(p => p.id !== id));
@@ -130,7 +139,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       .single();
 
     if (error || !data) {
-      adicionarNotificacao(`Erro ao salvar receita: ${error?.message}`, 'erro');
+      adicionarNotificacao(mensagemDeErroOperacional('salvar a receita', error), 'erro');
       return false;
     }
     setReceitas(prev => [...prev, receitaDoBanco(data)]);
@@ -140,7 +149,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const excluirReceita = async (id: string): Promise<boolean> => {
     const { error } = await supabase.from('receitas').delete().eq('id', id);
     if (error) {
-      adicionarNotificacao(`Erro ao excluir receita: ${error.message}`, 'erro');
+      adicionarNotificacao(mensagemDeErroOperacional('excluir a receita', error), 'erro');
       return false;
     }
     setReceitas(prev => prev.filter(r => r.id !== id));
@@ -173,7 +182,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       .single();
 
     if (error || !data) {
-      adicionarNotificacao(`Erro ao atualizar estoque de ${p.nome}: ${error?.message}`, 'erro');
+      adicionarNotificacao(mensagemDeErroOperacional('atualizar o estoque', error), 'erro');
       return false;
     }
 
@@ -196,7 +205,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       .single();
 
     if (error || !data) {
-      adicionarNotificacao(`Erro ao registrar venda: ${error?.message}`, 'erro');
+      adicionarNotificacao(mensagemDeErroOperacional('registrar a venda', error), 'erro');
       return false;
     }
     setVendas(prev => [...prev, vendaDoBanco(data)]);
