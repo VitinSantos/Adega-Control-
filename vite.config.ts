@@ -3,15 +3,19 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
-  const supabaseUrl =
-    env.VITE_SUPABASE_URL ??
-    env.NEXT_PUBLIC_SUPABASE_URL ??
-    env.SUPABASE_URL
-  const supabasePublishableKey =
-    env.VITE_SUPABASE_PUBLISHABLE_KEY ??
-    env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
-    env.SUPABASE_PUBLISHABLE_KEY ??
-    env.SUPABASE_ANON_KEY
+  const getEnv = (...names: string[]) =>
+    names.map((name) => env[name] ?? process.env[name]).find(Boolean)
+  const supabaseUrl = getEnv(
+    'VITE_SUPABASE_URL',
+    'NEXT_PUBLIC_SUPABASE_URL',
+    'SUPABASE_URL',
+  )
+  const supabasePublishableKey = getEnv(
+    'VITE_SUPABASE_PUBLISHABLE_KEY',
+    'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY',
+    'SUPABASE_PUBLISHABLE_KEY',
+    'SUPABASE_ANON_KEY',
+  )
 
   return {
     plugins: [react()],
