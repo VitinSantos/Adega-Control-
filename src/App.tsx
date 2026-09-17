@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Menu } from 'lucide-react';
 import { ThemeProvider } from './context/ThemeContext';
 import { Sidebar } from './components/sidebar';
@@ -9,12 +9,45 @@ import { Estoque } from './pages/Estoque';
 import { Receitas } from './pages/Receitas';
 import { Relatorios } from './pages/Relatorios';
 import { useApp } from './context/AppContext';
+import { supabase } from './lib/supabaseClient';
 
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
+  const [authCarregando, setAuthCarregando] = useState(true);
   const [paginaAtual, setPaginaAtual] = useState<string>('dashboard');
+
+  useEffect(() => {
+    let ativo = true;
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (ativo) {
+        setIsLoggedIn(Boolean(session));
+        setAuthCarregando(false);
+      }
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsLoggedIn(Boolean(session));
+      setAuthCarregando(false);
+    });
+
+    return () => {
+      ativo = false;
+      subscription.unsubscribe();
+    };
+  }, []);
   const [menuAberto, setMenuAberto] = useState<boolean>(false);
   const { carregando, erroConexao } = useApp();
+
+  if (authCarregando) {
+    return (
+      <ThemeProvider>
+        <div className="flex h-screen items-center justify-center bg-gray-50 dark:bg-gray-900 text-gray-600 dark:text-gray-300">
+          Carregando sessão...
+        </div>
+      </ThemeProvider>
+    );
+  }
 
   if (!isLoggedIn) {
     return (
@@ -66,7 +99,10 @@ export default function App() {
               setPaginaAtual(pagina);
               setMenuAberto(false);
             }}
-            onLogout={() => setIsLoggedIn(false)}
+            onLogout={async () => {
+              await supabase.auth.signOut();
+              setIsLoggedIn(false);
+            }}
           />
         </div>
 
