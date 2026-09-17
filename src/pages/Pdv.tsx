@@ -5,7 +5,7 @@ import type { Produto, Receita, Venda } from '../types';
 type ItemVenda = (Produto | Receita) & { tipo?: 'ML' | 'Unidade' };
 
 export function Pdv() {
-  const { produtos, receitas, vendas, darBaixa, registrarVenda, notificacoes, setNotificacoes, adicionarNotificacao } = useApp();
+  const { produtos, receitas, vendas, registrarVendaComEstoque, notificacoes, setNotificacoes, adicionarNotificacao } = useApp();
   const [iniciandoVenda, setIniciandoVenda] = useState(false);
   const [busca, setBusca] = useState('');
   const [processando, setProcessando] = useState(false);
@@ -43,21 +43,19 @@ export function Pdv() {
         return acc + prod.precoCusto * ing.qtd;
       }, 0);
 
-      for (const ing of item.ingredientes) {
-        const sucesso = await darBaixa(ing.produtoId, ing.tipo, ing.qtd);
-        if (!sucesso) {
-          setProcessando(false);
-          return;
-        }
-      }
     } else {
       custoDoItem = item.precoCusto || 0;
-      const sucesso = await darBaixa(item.id, 'Unidade', 1);
-      if (!sucesso) {
-        setProcessando(false);
-        return;
-      }
     }
+
+    const baixas = ehReceita(item)
+      ? item.ingredientes.map((ing) => {
+          const prod = produtos.find((p) => p.id === ing.produtoId);
+          return {
+            produtoId: ing.produtoId,
+            quantidade: ing.tipo === 'ML' && prod && prod.mlPorGarrafa > 0 ? ing.qtd / prod.mlPorGarrafa : ing.qtd,
+          };
+        })
+      : [{ produtoId: item.id, quantidade: 1 }];
 
     const precoVenda = Number(item.preco || 0);
 
@@ -72,7 +70,7 @@ export function Pdv() {
       dataHoraISO: new Date().toISOString(),
     };
 
-    const vendaRegistrada = await registrarVenda(novaVenda);
+    const vendaRegistrada = await registrarVendaComEstoque(novaVenda, baixas);
     if (vendaRegistrada) {
       adicionarNotificacao(`Venda registrada: ${item.nome} — R$ ${precoVenda.toFixed(2)}`, 'sucesso');
       setIniciandoVenda(false);
