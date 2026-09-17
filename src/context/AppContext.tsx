@@ -36,6 +36,7 @@ interface AppContextValue {
 
   darBaixa: (produtoId: string, tipo: 'ML' | 'Unidade', quantidade: number) => Promise<boolean>;
   registrarVenda: (venda: Omit<Venda, 'id'>) => Promise<boolean>;
+  registrarVendaComEstoque: (venda: Omit<Venda, 'id'>, baixas: { produtoId: string; quantidade: number }[]) => Promise<boolean>;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -197,6 +198,34 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return true;
   };
 
+  const registrarVendaComEstoque = async (venda: Omit<Venda, 'id'>, baixas: { produtoId: string; quantidade: number }[]): Promise<boolean> => {
+    const { data, error } = await supabase.rpc('registrar_venda_com_estoque', {
+      p_baixas: baixas.map((baixa) => ({ produto_id: baixa.produtoId, quantidade: baixa.quantidade })),
+      p_nome: venda.nome,
+      p_preco: venda.preco,
+      p_custo: venda.custo,
+      p_lucro: venda.lucro,
+      p_data: venda.data,
+      p_data_hora_iso: venda.dataHoraISO,
+    });
+
+    if (error || !data?.[0]) {
+      adicionarNotificacao(mensagemDeErroOperacional('registrar a venda', error), 'erro');
+      return false;
+    }
+
+    setVendas((prev) => [...prev, vendaDoBanco(data[0])]);
+    const idsAtualizados = new Set(baixas.map((baixa) => baixa.produtoId));
+    const { data: produtosAtualizados } = await supabase.from('produtos').select('*').in('id', [...idsAtualizados]);
+    if (produtosAtualizados) {
+      setProdutos((prev) => prev.map((produto) => {
+        const atualizado = produtosAtualizados.find((item) => item.id === produto.id);
+        return atualizado ? produtoDoBanco(atualizado) : produto;
+      }));
+    }
+    return true;
+  };
+
   const registrarVenda = async (venda: Omit<Venda, 'id'>): Promise<boolean> => {
     const { data, error } = await supabase
       .from('vendas')
@@ -221,8 +250,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       nomeProdutoExiste,
       criarProduto, atualizarProduto, excluirProduto,
       criarReceita, excluirReceita,
-      darBaixa, registrarVenda,
-    }}>
+  darBaixa, registrarVenda, registrarVendaComEstoque,
+  }}>
       {children}
     </AppContext.Provider>
   );
