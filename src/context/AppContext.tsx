@@ -60,7 +60,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    async function carregarTudo() {
+    let ativo = true;
+
+    const limparDados = () => {
+      setProdutos([]);
+      setReceitas([]);
+      setVendas([]);
+      setErroConexao(null);
+    };
+
+    const carregarTudo = async () => {
       setCarregando(true);
       setErroConexao(null);
 
@@ -69,6 +78,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         supabase.from('receitas').select('*').order('nome'),
         supabase.from('vendas').select('*').order('data_hora_iso', { ascending: true }),
       ]);
+
+      if (!ativo) return;
 
       if (resProdutos.error || resReceitas.error || resVendas.error) {
         const erro = resProdutos.error || resReceitas.error || resVendas.error;
@@ -81,9 +92,37 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setReceitas((resReceitas.data ?? []).map(receitaDoBanco));
       setVendas((resVendas.data ?? []).map(vendaDoBanco));
       setCarregando(false);
-    }
+    };
 
-    carregarTudo();
+    const sincronizarSessao = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!ativo) return;
+
+      if (session) {
+        await carregarTudo();
+      } else {
+        limparDados();
+        setCarregando(false);
+      }
+    };
+
+    sincronizarSessao();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
+      if (!ativo) return;
+
+      if (session) {
+        void carregarTudo();
+      } else {
+        limparDados();
+        setCarregando(false);
+      }
+    });
+
+    return () => {
+      ativo = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const nomeProdutoExiste = (nome: string, ignorarId?: string) => {
