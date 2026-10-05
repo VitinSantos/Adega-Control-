@@ -1,10 +1,96 @@
 # Relatório geral do SaaS — Adega Control
 
-**Versão do relatório:** 1.0  
-**Data:** 4 de outubro de 2026  
+**Versão do relatório:** 1.1  
+**Data de criação:** 4 de outubro de 2026  
+**Última atualização:** 4 de outubro de 2026 (horário de Brasília) — ver seção 0  
 **Escopo:** arquitetura atual, funcionamento, tecnologia, riscos, melhorias de UX/UI, segurança, qualidade, operação e roadmap.
 
 > Este documento descreve o estado observado no código-fonte do frontend. A confirmação final de RLS, policies, triggers, RPCs, índices, buckets e constraints exige uma auditoria do schema real do projeto Supabase. Portanto, os itens marcados como **a validar** não devem ser considerados garantidos apenas porque existem no frontend.
+
+---
+
+## 0. Painel de acompanhamento
+
+> Esta seção é o **ponto de controle do trabalho**. Ela é atualizada a cada rodada: o que foi feito vai para o registro de concluídas (com data, o que mudou e como foi verificado) e o que falta fica no backlog. As demais seções (1 a 13) são o diagnóstico original e permanecem como referência.
+
+### 0.1 Situação atual (04/10/2026)
+
+| Item da matriz (seção 11) | Situação | Observação |
+|---|---|---|
+| P0 · RLS e isolamento | **Concluído no banco** | Testado com 16 cenários (C-04). Falta teste automatizado versionado (T-04). |
+| P0 · RPC de venda | **Parcial** | Estoque, data, lucro e empresa agora são controlados pelo servidor. **Preço e custo ainda vêm do navegador** (T-01). |
+| P0 · Segredos | **Pendente** | Prefixo `SUPABASE_` removido do build (C-06, em revisão). Rotação e limpeza na Vercel dependem de ação no painel (T-03). |
+| P1 · Sessão única | Pendente | T-12 |
+| P1 · Testes de integração | Pendente | T-04 e T-13 |
+| P1 · Erros verdadeiros | Pendente | T-12 |
+| P1 · Concorrência | **Concluído na venda** | Baixa de estoque atômica e condicional dentro da função de venda. |
+| P2 · Roteamento, paginação, acessibilidade, observabilidade | Pendente | T-14 a T-17 |
+| P3 · Cobrança | Aguardando etapas anteriores | T-20 |
+
+### 0.2 Registro de tarefas concluídas
+
+> Alterações de **banco** já estão valendo no ambiente real. Alterações de **código** só valem em produção depois do merge da branch.
+
+| ID | Data | O que foi feito | Onde | Como foi verificado |
+|---|---|---|---|---|
+| C-01 | 04/10/2026 | Auditoria real do Supabase (tabelas, políticas, funções, permissões, bucket, usuários) e varredura estática do código. Resultado: tabelas `produtos`, `receitas` e `vendas` estavam abertas ao público (`anon`) por políticas “demo”; `organization_id` vazio em todas as linhas; venda confiando no navegador; segredos legíveis na Vercel. | Supabase, GitHub, Vercel | Consultas somente leitura e alertas oficiais (advisors). |
+| C-02 | 04/10/2026 | Limpeza do teste de conexão: removido o emoji do título da aba. | `index.html` (branch de preview) | Novo commit na branch. |
+| C-03 | 04/10/2026 | **Migração `fase1_hardening_funcoes_storage_indices`:** removido o acesso anônimo e público às funções `handle_new_user`, `bootstrap_current_user` e `is_org_member`; bucket `avatars` limitado a PNG/JPEG/WebP até 5 MB (antes sem limite); removidas 3 políticas duplicadas do Storage e 2 de `profiles`; criado índice em `organization_members.user_id`. | Supabase | Alertas de segurança caíram de 7 para 3; alertas de desempenho de `profiles` resolvidos. |
+| C-04 | 04/10/2026 | **Migração `fase1_multitenancy_rls_e_venda_segura`:** removidas as políticas abertas ao público; 24 registros existentes vinculados à empresa do dono; `organization_id` obrigatório e preenchido automaticamente pela empresa do usuário logado; novas políticas somente para usuários logados e da própria empresa (exclusão restrita a dono/admin; `vendas` somente leitura direta); cadastro novo cria perfil, empresa própria e vínculo de dono; usuário sem empresa recebeu uma vazia; função `registrar_venda_com_estoque` reescrita (checa empresa, valida limites, **data e hora definidas pelo servidor em America/Sao_Paulo**, lucro recalculado no servidor, baixa de estoque atômica, sem acesso anônimo). | Supabase | Teste de 16 cenários em transação desfeita: isolamento entre duas empresas (leitura, alteração, exclusão, inserção e venda cruzadas bloqueadas), anônimo sem acesso, insert direto em `vendas` bloqueado, venda acima do estoque bloqueada, data do cliente ignorada, dono real continua vendo 7 produtos e 15 vendas. Nenhum resíduo de teste. |
+| C-05 | 04/10/2026 | **Migração `fase1_revogar_bootstrap_redundante`:** `bootstrap_current_user` deixou de ser exposta pela API, pois o cadastro já cria a empresa. | Supabase | Alerta de segurança correspondente removido. |
+| C-06 | 04/10/2026 | `vite.config.ts` deixa de expor ao navegador variáveis com prefixo `SUPABASE_` (onde ficam service role, secret key e JWT secret). Mantido `NEXT_PUBLIC_`, pois os deploys de preview dependem dele. Criado `vercel.json` com cabeçalhos de segurança (nosniff, Referrer-Policy, HSTS, Permissions-Policy, X-Frame-Options) e CSP em modo **somente relatório**. | Branch de preview | Aguardando preview e merge. Estado: **em revisão**. |
+
+### 0.3 Em revisão (código na branch de preview, ainda não em produção)
+
+- C-06 (build sem prefixo `SUPABASE_` e cabeçalhos de segurança). Ao validar o preview: abrir o console do navegador e conferir se a CSP em modo relatório não acusa bloqueios indevidos. Só depois trocar para modo aplicado (T-11).
+
+### 0.4 Backlog (a fazer)
+
+**P0 — bloqueia a venda do sistema**
+
+| ID | Tarefa | Por quê |
+|---|---|---|
+| T-01 | Calcular **preço e custo no servidor**: nova função de venda que recebe apenas o identificador do produto/receita e a quantidade, busca preço e custo no banco e grava itens da venda com snapshot. Adaptar o PDV (carrinho, quantidade). | Hoje o navegador ainda envia preço e custo. |
+| T-02 | Remover do app o acesso direto antigo (`darBaixa`, `registrarVenda`, atualização direta de `qtd`) e criar ajuste de estoque por função, com histórico. | Evita estoque arbitrário e corrida entre operações. |
+| T-03 | Segredos na Vercel (**ação no painel**): marcar como *Sensitive*, remover do projeto os que o frontend não usa (`SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_SECRET_KEY`, `SUPABASE_JWT_SECRET`, `POSTGRES_*`) e rotacioná-los se houver qualquer dúvida de exposição. Conferir o bundle publicado. | A própria Vercel os marca como legíveis. |
+| T-04 | Versionar um teste de regressão de RLS (os 16 cenários da C-04) para rodar a cada migração. | Garante que o isolamento não regrida. |
+
+**P1 — alto**
+
+| ID | Tarefa |
+|---|---|
+| T-05 | Versionar as migrações no repositório (`supabase/migrations`); hoje existem apenas no Supabase. |
+| T-06 | Papéis (`owner`/`admin`/`member`) aplicados na interface e no banco; `member` não altera preço/custo nem exclui. |
+| T-07 | Autenticação: ativar proteção contra senhas vazadas (**painel do Supabase**), senha mais forte, recuperação de senha, confirmação de e-mail obrigatória, limite de tentativas, convite de membros. |
+| T-08 | Avatars: decidir entre bucket privado com URLs assinadas ou manter público com os limites atuais; remover a imagem externa do Unsplash como avatar padrão. |
+| T-09 | Tabelas `stock_movements`, `sale_items` e `audit_logs`. |
+| T-10 | Barra lateral: nome e e-mail estão fixos no código para qualquer usuário; telefone de suporte também. Passar a usar os dados do usuário logado e configuração. |
+| T-11 | Trocar a CSP de “somente relatório” para aplicada, depois de validada. |
+| T-12 | Sessão única (`AuthProvider`), limpeza total no logout, erros que nunca mostram sucesso. |
+
+**P2 — médio**
+
+| ID | Tarefa |
+|---|---|
+| T-13 | Testes de integração e E2E, e CI (lint, typecheck, testes, build, auditoria de dependências). |
+| T-14 | Roteamento com rotas protegidas. |
+| T-15 | Paginação e filtros (hoje todas as vendas são carregadas de uma vez). |
+| T-16 | PDV com carrinho, quantidade, desconto, teclado e estados de carregamento/erro. |
+| T-17 | Observabilidade: monitoramento de erros, logs, backup e restauração testados. |
+| T-18 | Acessibilidade e design system. |
+| T-19 | Plano Vercel adequado a uso comercial (o plano Hobby é restrito a uso pessoal) e conferência do plano do Supabase (backup). |
+
+**P3 — depois**
+
+| ID | Tarefa |
+|---|---|
+| T-20 | LGPD (política de privacidade, exportação e exclusão de dados), planos e cobrança, proteção da branch principal no GitHub. |
+
+### 0.5 Pendências que dependem de ação manual
+
+1. Ativar *Leaked Password Protection* no painel do Supabase (Authentication).
+2. Revisar e limpar as variáveis de ambiente da Vercel (T-03).
+3. Fazer o merge da branch de preview quando o preview for aprovado.
 
 ---
 
