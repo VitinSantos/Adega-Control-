@@ -4,8 +4,9 @@ import react from '@vitejs/plugin-react'
 export default defineConfig(() => {
   return {
     plugins: [react()],
-    envPrefix: ['VITE_', 'NEXT_PUBLIC_', 'SUPABASE_'],
-    // Mantém as variáveis injetadas pelo Vite intactas; definir cada chave
-    // manualmente com string vazia sobrescreve o ambiente do preview.
+    // Somente variáveis públicas chegam ao navegador (bundle).
+    // NUNCA incluir 'SUPABASE_' aqui: esse prefixo guarda service role,
+    // secret key e JWT secret, que não podem ser expostos ao frontend.
+    envPrefix: ['VITE_', 'NEXT_PUBLIC_'],
   }
 })
