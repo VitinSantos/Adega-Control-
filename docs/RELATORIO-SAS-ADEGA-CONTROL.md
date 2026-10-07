@@ -2,7 +2,7 @@
 
 **Versão do relatório:** 1.1  
 **Data de criação:** 4 de outubro de 2026  
-**Última atualização:** 4 de outubro de 2026 (horário de Brasília) — ver seção 0  
+**Última atualização:** 7 de outubro de 2026 (horário de Brasília) — ver seção 0  
 **Escopo:** arquitetura atual, funcionamento, tecnologia, riscos, melhorias de UX/UI, segurança, qualidade, operação e roadmap.
 
 > Este documento descreve o estado observado no código-fonte do frontend. A confirmação final de RLS, policies, triggers, RPCs, índices, buckets e constraints exige uma auditoria do schema real do projeto Supabase. Portanto, os itens marcados como **a validar** não devem ser considerados garantidos apenas porque existem no frontend.
@@ -13,7 +13,7 @@
 
 > Esta seção é o **ponto de controle do trabalho**. Ela é atualizada a cada rodada: o que foi feito vai para o registro de concluídas (com data, o que mudou e como foi verificado) e o que falta fica no backlog. As demais seções (1 a 13) são o diagnóstico original e permanecem como referência.
 
-### 0.1 Situação atual (04/10/2026)
+### 0.1 Situação atual (atualizada em 07/10/2026)
 
 | Item da matriz (seção 11) | Situação | Observação |
 |---|---|---|
@@ -39,7 +39,7 @@
 | C-04 | 04/10/2026 | **Migração `fase1_multitenancy_rls_e_venda_segura`:** removidas as políticas abertas ao público; 24 registros existentes vinculados à empresa do dono; `organization_id` obrigatório e preenchido automaticamente pela empresa do usuário logado; novas políticas somente para usuários logados e da própria empresa (exclusão restrita a dono/admin; `vendas` somente leitura direta); cadastro novo cria perfil, empresa própria e vínculo de dono; usuário sem empresa recebeu uma vazia; função `registrar_venda_com_estoque` reescrita (checa empresa, valida limites, **data e hora definidas pelo servidor em America/Sao_Paulo**, lucro recalculado no servidor, baixa de estoque atômica, sem acesso anônimo). | Supabase | Teste de 16 cenários em transação desfeita: isolamento entre duas empresas (leitura, alteração, exclusão, inserção e venda cruzadas bloqueadas), anônimo sem acesso, insert direto em `vendas` bloqueado, venda acima do estoque bloqueada, data do cliente ignorada, dono real continua vendo 7 produtos e 15 vendas. Nenhum resíduo de teste. |
 | C-05 | 04/10/2026 | **Migração `fase1_revogar_bootstrap_redundante`:** `bootstrap_current_user` deixou de ser exposta pela API, pois o cadastro já cria a empresa. | Supabase | Alerta de segurança correspondente removido. |
 | C-06 | 04/10/2026 | `vite.config.ts` deixa de expor ao navegador variáveis com prefixo `SUPABASE_` (onde ficam service role, secret key e JWT secret). Mantido `NEXT_PUBLIC_`, pois os deploys de preview dependem dele. Criado `vercel.json` com cabeçalhos de segurança (nosniff, Referrer-Policy, HSTS, Permissions-Policy, X-Frame-Options) e CSP em modo **somente relatório**. | Branch de preview | Build do preview concluído com sucesso na Vercel. Estado: **validado em preview pelo responsável (C-07); falta o merge**. |
-| C-07 | 04/10/2026 | Teste manual do preview pelo responsável após as mudanças de banco e de código: aplicação funcionando normalmente. | Preview na Vercel | Validação do responsável (login, estoque e venda). |
+| C-07 | 07/10/2026 | Teste manual do preview pelo responsável após as mudanças de banco e de código: aplicação funcionando normalmente. | Preview na Vercel | Validação do responsável (login, estoque e venda). |
 
 ### 0.3 Em revisão (código na branch de preview, ainda não em produção)
 
