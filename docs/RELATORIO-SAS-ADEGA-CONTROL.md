@@ -38,11 +38,12 @@
 | C-03 | 04/10/2026 | **Migração `fase1_hardening_funcoes_storage_indices`:** removido o acesso anônimo e público às funções `handle_new_user`, `bootstrap_current_user` e `is_org_member`; bucket `avatars` limitado a PNG/JPEG/WebP até 5 MB (antes sem limite); removidas 3 políticas duplicadas do Storage e 2 de `profiles`; criado índice em `organization_members.user_id`. | Supabase | Alertas de segurança caíram de 7 para 3; alertas de desempenho de `profiles` resolvidos. |
 | C-04 | 04/10/2026 | **Migração `fase1_multitenancy_rls_e_venda_segura`:** removidas as políticas abertas ao público; 24 registros existentes vinculados à empresa do dono; `organization_id` obrigatório e preenchido automaticamente pela empresa do usuário logado; novas políticas somente para usuários logados e da própria empresa (exclusão restrita a dono/admin; `vendas` somente leitura direta); cadastro novo cria perfil, empresa própria e vínculo de dono; usuário sem empresa recebeu uma vazia; função `registrar_venda_com_estoque` reescrita (checa empresa, valida limites, **data e hora definidas pelo servidor em America/Sao_Paulo**, lucro recalculado no servidor, baixa de estoque atômica, sem acesso anônimo). | Supabase | Teste de 16 cenários em transação desfeita: isolamento entre duas empresas (leitura, alteração, exclusão, inserção e venda cruzadas bloqueadas), anônimo sem acesso, insert direto em `vendas` bloqueado, venda acima do estoque bloqueada, data do cliente ignorada, dono real continua vendo 7 produtos e 15 vendas. Nenhum resíduo de teste. |
 | C-05 | 04/10/2026 | **Migração `fase1_revogar_bootstrap_redundante`:** `bootstrap_current_user` deixou de ser exposta pela API, pois o cadastro já cria a empresa. | Supabase | Alerta de segurança correspondente removido. |
-| C-06 | 04/10/2026 | `vite.config.ts` deixa de expor ao navegador variáveis com prefixo `SUPABASE_` (onde ficam service role, secret key e JWT secret). Mantido `NEXT_PUBLIC_`, pois os deploys de preview dependem dele. Criado `vercel.json` com cabeçalhos de segurança (nosniff, Referrer-Policy, HSTS, Permissions-Policy, X-Frame-Options) e CSP em modo **somente relatório**. | Branch de preview | Aguardando preview e merge. Estado: **em revisão**. |
+| C-06 | 04/10/2026 | `vite.config.ts` deixa de expor ao navegador variáveis com prefixo `SUPABASE_` (onde ficam service role, secret key e JWT secret). Mantido `NEXT_PUBLIC_`, pois os deploys de preview dependem dele. Criado `vercel.json` com cabeçalhos de segurança (nosniff, Referrer-Policy, HSTS, Permissions-Policy, X-Frame-Options) e CSP em modo **somente relatório**. | Branch de preview | Build do preview concluído com sucesso na Vercel. Estado: **validado em preview pelo responsável (C-07); falta o merge**. |
+| C-07 | 04/10/2026 | Teste manual do preview pelo responsável após as mudanças de banco e de código: aplicação funcionando normalmente. | Preview na Vercel | Validação do responsável (login, estoque e venda). |
 
 ### 0.3 Em revisão (código na branch de preview, ainda não em produção)
 
-- C-06 (build sem prefixo `SUPABASE_` e cabeçalhos de segurança). Ao validar o preview: abrir o console do navegador e conferir se a CSP em modo relatório não acusa bloqueios indevidos. Só depois trocar para modo aplicado (T-11).
+- C-06 (build sem prefixo `SUPABASE_` e cabeçalhos de segurança): preview validado (C-07), **falta fazer o merge** da branch `v0/adega-control-branch-security-baseline-7d45ba2e` na branch principal. A CSP segue em modo relatório; antes de aplicá-la (T-11), conferir no console do navegador se ela acusa algum bloqueio indevido durante o uso real.
 
 ### 0.4 Backlog (a fazer)
 
@@ -61,7 +62,7 @@
 |---|---|
 | T-05 | Versionar as migrações no repositório (`supabase/migrations`); hoje existem apenas no Supabase. |
 | T-06 | Papéis (`owner`/`admin`/`member`) aplicados na interface e no banco; `member` não altera preço/custo nem exclui. |
-| T-07 | Autenticação: ativar proteção contra senhas vazadas (**painel do Supabase**), senha mais forte, recuperação de senha, confirmação de e-mail obrigatória, limite de tentativas, convite de membros. |
+| T-07 | Autenticação: senha mais forte (tamanho mínimo e requisitos nas configurações do Auth, disponíveis no plano Free), recuperação de senha, confirmação de e-mail obrigatória, limite de tentativas, convite de membros. **Proteção contra senhas vazadas:** o recurso nativo do Supabase exige o plano Pro (confirmado: indisponível no plano Free da conta). Alternativa no plano Free: verificar a senha no cadastro contra a base Pwned Passwords por k-anonimato (só os 5 primeiros caracteres do hash saem do navegador), liberando `api.pwnedpasswords.com` na CSP. |
 | T-08 | Avatars: decidir entre bucket privado com URLs assinadas ou manter público com os limites atuais; remover a imagem externa do Unsplash como avatar padrão. |
 | T-09 | Tabelas `stock_movements`, `sale_items` e `audit_logs`. |
 | T-10 | Barra lateral: nome e e-mail estão fixos no código para qualquer usuário; telefone de suporte também. Passar a usar os dados do usuário logado e configuração. |
@@ -78,7 +79,7 @@
 | T-16 | PDV com carrinho, quantidade, desconto, teclado e estados de carregamento/erro. |
 | T-17 | Observabilidade: monitoramento de erros, logs, backup e restauração testados. |
 | T-18 | Acessibilidade e design system. |
-| T-19 | Plano Vercel adequado a uso comercial (o plano Hobby é restrito a uso pessoal) e conferência do plano do Supabase (backup). |
+| T-19 | Plano Vercel adequado a uso comercial (o plano Hobby é restrito a uso pessoal) e migração do Supabase para o plano Pro antes de vender (o plano Free não tem a proteção nativa contra senhas vazadas e oferece recursos de backup mais limitados; conferir as condições vigentes). |
 
 **P3 — depois**
 
@@ -88,9 +89,9 @@
 
 ### 0.5 Pendências que dependem de ação manual
 
-1. Ativar *Leaked Password Protection* no painel do Supabase (Authentication).
+1. ~~Ativar *Leaked Password Protection* no painel do Supabase~~ — **indisponível no plano Free**; tratada em T-07 (alternativa por código) e T-19 (upgrade para Pro).
 2. Revisar e limpar as variáveis de ambiente da Vercel (T-03).
-3. Fazer o merge da branch de preview quando o preview for aprovado.
+3. Fazer o merge da branch de preview na principal (preview já aprovado em C-07).
 
 ---
 
