@@ -35,6 +35,15 @@ export interface Venda {
   dataHoraISO: string;
 }
 
+export type TipoItemPedido = 'produto' | 'receita';
+
+// O navegador informa apenas O QUE foi vendido. Preço e custo são sempre lidos do banco.
+export interface ItemPedido {
+  tipo: TipoItemPedido;
+  id: string;
+  quantidade: number;
+}
+
 export type TipoNotificacao = 'sucesso' | 'aviso' | 'erro';
 
 export interface Notificacao {

@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import type { Produto } from '../types';
+import type { Produto, Receita } from '../types';
 import {
+  calcularConsumoDoCarrinho,
   calcularEstoqueFinal,
   calcularLucro,
   calcularMargem,
+  calcularTotalEstimado,
   classificarEstoque,
+  encontrarEstoqueInsuficiente,
   normalizarQuantidade,
   validarVenda,
 } from './businessRules';
@@ -49,5 +52,48 @@ describe('vendas', () => {
     expect(validarVenda({ preco: 100, custo: 70, lucro: 30 }, -1)).toBe('Estoque insuficiente.');
     expect(normalizarQuantidade(0)).toBeNull();
     expect(normalizarQuantidade(2)).toBe(2);
+  });
+});
+
+describe('carrinho do PDV', () => {
+  const prod = (id: string, qtd: number, mlPorGarrafa = 1000): Produto => ({
+    id, nome: id, qtd, preco: 10, precoCusto: 5, mlPorGarrafa, alertaMinimo: 1, alertaCritico: 0,
+  });
+  const drink: Receita = {
+    id: 'drink', nome: 'Drink', preco: 50,
+    ingredientes: [
+      { produtoId: 'bebida', nome: 'Bebida', tipo: 'ML', qtd: 50 },
+      { produtoId: 'gelo', nome: 'Gelo', tipo: 'Unidade', qtd: 1 },
+    ],
+  };
+
+  it('calcula o consumo de receitas (ML vira fração de garrafa) e de produtos', () => {
+    const produtos = [prod('bebida', 10), prod('gelo', 10)];
+    const consumo = calcularConsumoDoCarrinho(
+      [{ tipo: 'receita', id: 'drink', quantidade: 2 }, { tipo: 'produto', id: 'gelo', quantidade: 1 }],
+      produtos, [drink],
+    );
+    expect(consumo?.get('bebida')).toBeCloseTo(0.1, 6);
+    expect(consumo?.get('gelo')).toBe(3);
+  });
+
+  it('retorna null quando item ou ingrediente não existe', () => {
+    expect(calcularConsumoDoCarrinho([{ tipo: 'produto', id: 'x', quantidade: 1 }], [], [])).toBeNull();
+    expect(calcularConsumoDoCarrinho([{ tipo: 'receita', id: 'drink', quantidade: 1 }], [prod('bebida', 10)], [drink])).toBeNull();
+  });
+
+  it('detecta estoque insuficiente somente quando falta de fato', () => {
+    const consumo = new Map([['bebida', 0.05]]);
+    expect(encontrarEstoqueInsuficiente(consumo, [prod('bebida', 0.04)])?.id).toBe('bebida');
+    expect(encontrarEstoqueInsuficiente(consumo, [prod('bebida', 0.05)])).toBeNull();
+  });
+
+  it('soma o total estimado por quantidade', () => {
+    const produtos = [prod('bebida', 10), prod('gelo', 10)];
+    const total = calcularTotalEstimado(
+      [{ tipo: 'receita', id: 'drink', quantidade: 2 }, { tipo: 'produto', id: 'gelo', quantidade: 3 }],
+      produtos, [drink],
+    );
+    expect(total).toBe(130);
   });
 });
