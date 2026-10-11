@@ -1,10 +1,10 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-import type { Produto, Venda, Receita, Notificacao, TipoNotificacao } from '../types';
+import type { Produto, Venda, Receita, ItemPedido, Notificacao, TipoNotificacao } from '../types';
 import { supabase } from '../lib/supabaseClient';
 import {
   produtoDoBanco, produtoParaBanco,
   receitaDoBanco, receitaParaBanco,
-  vendaDoBanco, vendaParaBanco,
+  vendaDoBanco,
 } from '../lib/mappers';
 
 function mensagemDeErroOperacional(operacao: string, error?: { code?: string | null; status?: number; message?: string } | null) {
@@ -14,6 +14,30 @@ function mensagemDeErroOperacional(operacao: string, error?: { code?: string | n
   if (error?.status === 401 || error?.status === 403) return 'Você não tem permissão para realizar esta operação.';
   if (error?.status === 409) return 'A operação entrou em conflito. Atualize a tela e tente novamente.';
   return `Não foi possível ${operacao}. Tente novamente.`;
+}
+
+type ErroDoServidor = { code?: string | null; status?: number; message?: string; details?: string | null } | null | undefined;
+
+// O banco responde com códigos fixos (ex.: ESTOQUE_INSUFICIENTE) para a tela explicar o motivo com clareza.
+function mensagemDeErroDoPedido(error?: ErroDoServidor) {
+  const detalhe = error?.details ?? '';
+  switch (error?.message) {
+    case 'ESTOQUE_INSUFICIENTE':
+      return `Estoque insuficiente de "${detalhe || 'um item'}". Ajuste o carrinho e tente novamente.`;
+    case 'ITEM_NAO_ENCONTRADO':
+      return 'Um item do carrinho não existe mais. Atualize a página e tente novamente.';
+    case 'INGREDIENTE_NAO_ENCONTRADO':
+      return `Um ingrediente da receita "${detalhe}" não existe mais no estoque.`;
+    case 'INGREDIENTE_INVALIDO':
+    case 'RECEITA_SEM_INGREDIENTES':
+      return `A receita "${detalhe}" está incompleta ou inválida.`;
+    case 'PEDIDO_INVALIDO':
+      return 'O pedido é inválido. Revise as quantidades (máximo de 99 por item e 200 no total).';
+    case 'SEM_EMPRESA':
+      return 'Sua conta ainda não está vinculada a uma empresa.';
+    default:
+      return mensagemDeErroOperacional('registrar a venda', error);
+  }
 }
 
 interface AppContextValue {
@@ -34,9 +58,8 @@ interface AppContextValue {
   criarReceita: (dados: Omit<Receita, 'id'>) => Promise<boolean>;
   excluirReceita: (id: string) => Promise<boolean>;
 
-  darBaixa: (produtoId: string, tipo: 'ML' | 'Unidade', quantidade: number) => Promise<boolean>;
-  registrarVenda: (venda: Omit<Venda, 'id'>) => Promise<boolean>;
-  registrarVendaComEstoque: (venda: Omit<Venda, 'id'>, baixas: { produtoId: string; quantidade: number }[]) => Promise<boolean>;
+  // Preço, custo, data e baixa de estoque são definidos pelo servidor. Retorna as vendas gravadas, ou null em caso de erro.
+  registrarPedido: (itens: ItemPedido[], pedidoId: string) => Promise<Venda[] | null>;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -196,88 +219,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return true;
   };
 
-  const darBaixa = async (produtoId: string, tipo: 'ML' | 'Unidade', quantidade: number): Promise<boolean> => {
-    const p = produtos.find(x => x.id === produtoId);
-    if (!p) {
-      adicionarNotificacao('Produto não encontrado para dar baixa no estoque.', 'erro');
-      return false;
-    }
-
-    let desconto = quantidade;
-    if (tipo === 'ML' && p.mlPorGarrafa > 0) {
-      desconto = quantidade / p.mlPorGarrafa;
-    }
-    const estoqueFinal = p.qtd - desconto;
-
-    if (estoqueFinal < 0) {
-      adicionarNotificacao(`Estoque insuficiente para: ${p.nome}. Venda bloqueada.`, 'erro');
-      return false;
-    }
-
-    const { data, error } = await supabase
-      .from('produtos')
-      .update({ qtd: estoqueFinal })
-      .eq('id', produtoId)
-      .select()
-      .single();
-
-    if (error || !data) {
-      adicionarNotificacao(mensagemDeErroOperacional('atualizar o estoque', error), 'erro');
-      return false;
-    }
-
-    const garrafasFechadas = Math.trunc(estoqueFinal);
-    if (garrafasFechadas <= p.alertaCritico) {
-      adicionarNotificacao(`Estoque crítico: ${p.nome} tem apenas ${garrafasFechadas} un restantes.`, 'erro');
-    } else if (garrafasFechadas <= p.alertaMinimo) {
-      adicionarNotificacao(`Estoque baixo: ${p.nome} tem ${garrafasFechadas} un restantes.`, 'aviso');
-    }
-
-    setProdutos(prev => prev.map(prod => (prod.id === produtoId ? produtoDoBanco(data) : prod)));
-    return true;
-  };
-
-  const registrarVendaComEstoque = async (venda: Omit<Venda, 'id'>, baixas: { produtoId: string; quantidade: number }[]): Promise<boolean> => {
-    const { data, error } = await supabase.rpc('registrar_venda_com_estoque', {
-      p_baixas: baixas.map((baixa) => ({ produto_id: baixa.produtoId, quantidade: baixa.quantidade })),
-      p_nome: venda.nome,
-      p_preco: venda.preco,
-      p_custo: venda.custo,
-      p_lucro: venda.lucro,
-      p_data: venda.data,
-      p_data_hora_iso: venda.dataHoraISO,
+  const registrarPedido = async (itens: ItemPedido[], pedidoId: string): Promise<Venda[] | null> => {
+    const { data, error } = await supabase.rpc('registrar_pedido', {
+      p_itens: itens.map((item) => ({ tipo: item.tipo, id: item.id, quantidade: item.quantidade })),
+      p_pedido_id: pedidoId,
     });
 
-    if (error || !data?.[0]) {
-      adicionarNotificacao(mensagemDeErroOperacional('registrar a venda', error), 'erro');
-      return false;
+    if (error || !data || data.length === 0) {
+      adicionarNotificacao(mensagemDeErroDoPedido(error), 'erro');
+      return null;
     }
 
-    setVendas((prev) => [...prev, vendaDoBanco(data[0])]);
-    const idsAtualizados = new Set(baixas.map((baixa) => baixa.produtoId));
-    const { data: produtosAtualizados } = await supabase.from('produtos').select('*').in('id', [...idsAtualizados]);
-    if (produtosAtualizados) {
-      setProdutos((prev) => prev.map((produto) => {
-        const atualizado = produtosAtualizados.find((item) => item.id === produto.id);
-        return atualizado ? produtoDoBanco(atualizado) : produto;
-      }));
-    }
-    return true;
-  };
+    const registradas = (data as Parameters<typeof vendaDoBanco>[0][]).map(vendaDoBanco);
+    setVendas((prev) => {
+      const jaExistentes = new Set(prev.map((venda) => venda.id));
+      return [...prev, ...registradas.filter((venda) => !jaExistentes.has(venda.id))];
+    });
 
-  const registrarVenda = async (venda: Omit<Venda, 'id'>): Promise<boolean> => {
-    const { data, error } = await supabase
-      .from('vendas')
-      .insert(vendaParaBanco(venda))
-      .select()
-      .single();
+    // O estoque mudou no servidor (inclusive ingredientes de receitas): recarrega os produtos.
+    const { data: produtosAtualizados } = await supabase.from('produtos').select('*').order('nome');
+    if (produtosAtualizados) setProdutos(produtosAtualizados.map(produtoDoBanco));
 
-    if (error || !data) {
-      adicionarNotificacao(mensagemDeErroOperacional('registrar a venda', error), 'erro');
-      return false;
-    }
-    setVendas(prev => [...prev, vendaDoBanco(data)]);
-    return true;
+    return registradas;
   };
 
   return (
@@ -289,7 +252,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       nomeProdutoExiste,
       criarProduto, atualizarProduto, excluirProduto,
       criarReceita, excluirReceita,
-  darBaixa, registrarVenda, registrarVendaComEstoque,
+  registrarPedido,
   }}>
       {children}
     </AppContext.Provider>
