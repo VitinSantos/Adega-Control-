@@ -2,7 +2,7 @@
 
 **Versão do relatório:** 1.1  
 **Data de criação:** 4 de outubro de 2026  
-**Última atualização:** 7 de outubro de 2026 (horário de Brasília) — ver seção 0  
+**Última atualização:** 11 de outubro de 2026 (horário de Brasília) — ver seção 0  
 **Escopo:** arquitetura atual, funcionamento, tecnologia, riscos, melhorias de UX/UI, segurança, qualidade, operação e roadmap.
 
 > Este documento descreve o estado observado no código-fonte do frontend. A confirmação final de RLS, policies, triggers, RPCs, índices, buckets e constraints exige uma auditoria do schema real do projeto Supabase. Portanto, os itens marcados como **a validar** não devem ser considerados garantidos apenas porque existem no frontend.
@@ -13,12 +13,12 @@
 
 > Esta seção é o **ponto de controle do trabalho**. Ela é atualizada a cada rodada: o que foi feito vai para o registro de concluídas (com data, o que mudou e como foi verificado) e o que falta fica no backlog. As demais seções (1 a 13) são o diagnóstico original e permanecem como referência.
 
-### 0.1 Situação atual (atualizada em 07/10/2026)
+### 0.1 Situação atual (atualizada em 11/10/2026)
 
 | Item da matriz (seção 11) | Situação | Observação |
 |---|---|---|
 | P0 · RLS e isolamento | **Concluído no banco** | Testado com 16 cenários (C-04). Falta teste automatizado versionado (T-04). |
-| P0 · RPC de venda | **Parcial** | Estoque, data, lucro e empresa agora são controlados pelo servidor. **Preço e custo ainda vêm do navegador** (T-01). |
+| P0 · RPC de venda | **Concluído no banco e no preview** | Preço, custo, data, lucro, empresa e baixa de estoque são definidos pelo servidor (C-08, C-09). **Falta o merge do código e a remoção da função antiga**, que ainda aceita preço enviado pelo navegador (T-01b). |
 | P0 · Segredos | **Pendente** | Prefixo `SUPABASE_` removido do build (C-06, em revisão). Rotação e limpeza na Vercel dependem de ação no painel (T-03). |
 | P1 · Sessão única | Pendente | T-12 |
 | P1 · Testes de integração | Pendente | T-04 e T-13 |
@@ -40,10 +40,15 @@
 | C-05 | 04/10/2026 | **Migração `fase1_revogar_bootstrap_redundante`:** `bootstrap_current_user` deixou de ser exposta pela API, pois o cadastro já cria a empresa. | Supabase | Alerta de segurança correspondente removido. |
 | C-06 | 04/10/2026 | `vite.config.ts` deixa de expor ao navegador variáveis com prefixo `SUPABASE_` (onde ficam service role, secret key e JWT secret). Mantido `NEXT_PUBLIC_`, pois os deploys de preview dependem dele. Criado `vercel.json` com cabeçalhos de segurança (nosniff, Referrer-Policy, HSTS, Permissions-Policy, X-Frame-Options) e CSP em modo **somente relatório**. | Branch de preview | Build do preview concluído com sucesso na Vercel. Estado: **validado em preview pelo responsável (C-07); falta o merge**. |
 | C-07 | 07/10/2026 | Teste manual do preview pelo responsável após as mudanças de banco e de código: aplicação funcionando normalmente. | Preview na Vercel | Validação do responsável (login, estoque e venda). |
+| C-08 | 11/10/2026 | **Migração `t01_pedido_seguro_preco_custo_no_servidor`:** nova função `registrar_pedido(itens, pedido_id)`. O navegador informa apenas tipo, id e quantidade; **preço e custo são lidos do banco** (produto: preço e custo cadastrados; receita: preço da receita e custo somado dos ingredientes, com a mesma regra do PDV antigo para ML). Valida tipo, quantidade (1 a 99 por item, 200 no total) e empresa; baixa o estoque em ordem fixa de produto (evita deadlock) e de forma atômica (um item sem estoque desfaz o pedido inteiro); data e hora definidas pelo servidor (America/Sao_Paulo). Cada unidade vendida continua sendo uma linha em `vendas`, agora com `pedido_id`, `linha`, `tipo`, `produto_id` e `receita_id` (snapshot do que foi vendido), o que mantém relatórios e dashboard funcionando. Reenvio do mesmo `pedido_id` não duplica a venda nem baixa o estoque duas vezes. Erros com códigos fixos (`ESTOQUE_INSUFICIENTE`, `ITEM_NAO_ENCONTRADO` etc.). Sem acesso anônimo. | Supabase | Teste em transação desfeita com os dados reais: receita ×2 gravou preço 50,00, custo 16,50 e lucro 33,50, com baixas exatas de 0,100 (Jack), 0,650 (energético) e 2 (gelo); preço falso no payload ignorado; reenvio não duplicou; item sem estoque bloqueado e pedido desfeito por inteiro; 9 payloads inválidos rejeitados; outra empresa não vende nem enxerga itens alheios; anônimo bloqueado. Nenhum resíduo. |
+| C-09 | 11/10/2026 | **PDV com carrinho e venda segura no app:** `Pdv.tsx` ganhou carrinho com quantidade (+, −, remover, limpar), total estimado, aviso de estoque insuficiente na tela e identificador de pedido que torna o reenvio seguro. `AppContext.tsx` passou a usar `registrarPedido`, com mensagens claras por código de erro. Removido do app o código antigo de acesso direto (`darBaixa`, `registrarVenda`, `registrarVendaComEstoque`). Regras de carrinho em funções puras (`businessRules.ts`) com 4 testes novos. | Branch de preview | Build da Vercel concluído (`tsc` + `vite build`) nos commits `b2371c0` e `80ad370`; arquivos conferidos byte a byte contra a versão preparada. Os testes novos **ainda não foram executados** (o ambiente de trabalho não instala dependências). Falta teste manual do carrinho no preview (T-01c). |
+
+> **Evidência real do conserto do fuso (C-04):** uma venda feita no preview em 05/10/2026 às 22h43 (Brasília) foi gravada com data 05/10. Com o comportamento antigo (UTC), ela cairia em 06/10.
 
 ### 0.3 Em revisão (código na branch de preview, ainda não em produção)
 
-- C-06 (build sem prefixo `SUPABASE_` e cabeçalhos de segurança): preview validado (C-07), **falta fazer o merge** da branch `v0/adega-control-branch-security-baseline-7d45ba2e` na branch principal. A CSP segue em modo relatório; antes de aplicá-la (T-11), conferir no console do navegador se ela acusa algum bloqueio indevido durante o uso real.
+- C-06, C-08 e C-09 (cabeçalhos de segurança, build sem prefixo `SUPABASE_`, PDV com carrinho): código na branch `v0/adega-control-branch-security-baseline-7d45ba2e`, com build aprovado. **Falta o merge na branch principal.** A CSP segue em modo relatório; antes de aplicá-la (T-11), conferir no console do navegador se ela acusa algum bloqueio indevido durante o uso real.
+- **Atenção:** a função antiga `registrar_venda_com_estoque` continua no banco porque a versão em produção (branch principal) ainda a usa. Enquanto ela existir, um usuário logado mal-intencionado poderia enviar preço adulterado por ela. Ela será removida logo após o merge (T-01b).
 
 ### 0.4 Backlog (a fazer)
 
@@ -51,10 +56,11 @@
 
 | ID | Tarefa | Por quê |
 |---|---|---|
-| T-01 | Calcular **preço e custo no servidor**: nova função de venda que recebe apenas o identificador do produto/receita e a quantidade, busca preço e custo no banco e grava itens da venda com snapshot. Adaptar o PDV (carrinho, quantidade). | Hoje o navegador ainda envia preço e custo. |
-| T-02 | Remover do app o acesso direto antigo (`darBaixa`, `registrarVenda`, atualização direta de `qtd`) e criar ajuste de estoque por função, com histórico. | Evita estoque arbitrário e corrida entre operações. |
+| T-01b | **Depois do merge:** remover a função antiga `registrar_venda_com_estoque` (aceita preço e custo enviados pelo navegador) e confirmar que o PDV em produção usa `registrar_pedido`. | Fecha a última brecha de preço adulterado. |
+| T-01c | Teste manual do carrinho no preview: produto, receita, quantidade 2, item sem estoque e duplo clique em finalizar. | Validar a tela, que ainda não foi usada por pessoas. |
+| T-02 | Estoque: remover a edição direta de quantidade (tela de Estoque via `atualizarProduto`) e criar ajuste de estoque por função, com histórico. O código antigo de baixa direta já saiu do app (C-09). | Evita estoque arbitrário e corrida entre operações. |
 | T-03 | Segredos na Vercel (**ação no painel**): marcar como *Sensitive*, remover do projeto os que o frontend não usa (`SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_SECRET_KEY`, `SUPABASE_JWT_SECRET`, `POSTGRES_*`) e rotacioná-los se houver qualquer dúvida de exposição. Conferir o bundle publicado. | A própria Vercel os marca como legíveis. |
-| T-04 | Versionar um teste de regressão de RLS (os 16 cenários da C-04) para rodar a cada migração. | Garante que o isolamento não regrida. |
+| T-04 | Versionar um teste de regressão de RLS e de venda (os 16 cenários da C-04 e os 10 da C-08) para rodar a cada migração. | Garante que o isolamento e a venda segura não regridam. |
 
 **P1 — alto**
 
@@ -64,10 +70,11 @@
 | T-06 | Papéis (`owner`/`admin`/`member`) aplicados na interface e no banco; `member` não altera preço/custo nem exclui. |
 | T-07 | Autenticação: senha mais forte (tamanho mínimo e requisitos nas configurações do Auth, disponíveis no plano Free), recuperação de senha, confirmação de e-mail obrigatória, limite de tentativas, convite de membros. **Proteção contra senhas vazadas:** o recurso nativo do Supabase exige o plano Pro (confirmado: indisponível no plano Free da conta). Alternativa no plano Free: verificar a senha no cadastro contra a base Pwned Passwords por k-anonimato (só os 5 primeiros caracteres do hash saem do navegador), liberando `api.pwnedpasswords.com` na CSP. |
 | T-08 | Avatars: decidir entre bucket privado com URLs assinadas ou manter público com os limites atuais; remover a imagem externa do Unsplash como avatar padrão. |
-| T-09 | Tabelas `stock_movements`, `sale_items` e `audit_logs`. |
+| T-09 | Tabelas `stock_movements` e `audit_logs`. Os itens da venda já ficam em `vendas`, com `pedido_id` e snapshot (C-08). |
 | T-10 | Barra lateral: nome e e-mail estão fixos no código para qualquer usuário; telefone de suporte também. Passar a usar os dados do usuário logado e configuração. |
 | T-11 | Trocar a CSP de “somente relatório” para aplicada, depois de validada. |
 | T-12 | Sessão única (`AuthProvider`), limpeza total no logout, erros que nunca mostram sucesso. |
+| T-21 | **Precisão do estoque:** a coluna `qtd` tem 3 casas decimais e receitas baixam frações de garrafa (ex.: 50 ml de uma garrafa de 750 ml dá 0,0667, gravado como 0,067). O erro se acumula a cada venda. Solução: guardar o estoque em ml/unidade base ou aumentar a escala. |
 
 **P2 — médio**
 
@@ -76,7 +83,7 @@
 | T-13 | Testes de integração e E2E, e CI (lint, typecheck, testes, build, auditoria de dependências). |
 | T-14 | Roteamento com rotas protegidas. |
 | T-15 | Paginação e filtros (hoje todas as vendas são carregadas de uma vez). |
-| T-16 | PDV com carrinho, quantidade, desconto, teclado e estados de carregamento/erro. |
+| T-16 | PDV: desconto, atalhos de teclado e estados de carregamento/erro mais completos. Carrinho e quantidade já estão feitos (C-09). |
 | T-17 | Observabilidade: monitoramento de erros, logs, backup e restauração testados. |
 | T-18 | Acessibilidade e design system. |
 | T-19 | Plano Vercel adequado a uso comercial (o plano Hobby é restrito a uso pessoal) e migração do Supabase para o plano Pro antes de vender (o plano Free não tem a proteção nativa contra senhas vazadas e oferece recursos de backup mais limitados; conferir as condições vigentes). |
@@ -91,7 +98,7 @@
 
 1. ~~Ativar *Leaked Password Protection* no painel do Supabase~~ — **indisponível no plano Free**; tratada em T-07 (alternativa por código) e T-19 (upgrade para Pro).
 2. Revisar e limpar as variáveis de ambiente da Vercel (T-03).
-3. Fazer o merge da branch de preview na principal (preview já aprovado em C-07).
+3. Fazer o merge da branch de preview na principal (preview já aprovado em C-07; o PDV com carrinho ainda precisa de teste manual, T-01c). Depois, me avisar para executar a T-01b.
 
 ---
 
